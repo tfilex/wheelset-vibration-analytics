@@ -1,0 +1,28 @@
+[project]
+name = "wheelset-vibration-analytics"
+version = "0.1.0"
+description = "Анализ вибросигналов подшипников для магистерской диссертации"
+authors = [
+    { name = "Author" }
+]
+readme = "README.md"
+requires-python = ">=3.9"
+dependencies = [
+    "torch>=2.0.0",
+    "torchvision",
+    "mlflow",
+    "scipy",
+    "scikit-learn",
+    "matplotlib",
+    "seaborn",
+    "shap",
+    "PyWavelets",
+    "numpy",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.uv]
+managed = true
