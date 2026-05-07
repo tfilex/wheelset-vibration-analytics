@@ -39,4 +39,4 @@ tmp/
 temp/
 *.log
 
-# We do NOT ignore data/ or src/ because we want to track code and datasets.
+/data
