@@ -22,6 +22,8 @@ dependencies = [
     "numba>=0.59.0",
     "torchaudio>=2.11.0",
     "onnxscript>=0.7.0",
+    "catboost>=1.2.10",
+    "plotly>=6.7.0",
 ]
 
 [tool.uv]
