@@ -19,8 +19,10 @@ FIGURES_DIR: str = "reports/figures/summary"
 MODELS_DIR: str = "models"
 
 # src/prediction/config.py → src/prediction → src → VKR (project root)
-PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-MLFLOW_TRACKING_URI: str = f"sqlite:///{os.path.join(PROJECT_ROOT, 'mlflow.db')}"
+PROJECT_ROOT = os.path.dirname(os.path.dirname(
+    os.path.dirname(os.path.abspath(__file__))))
+MLFLOW_TRACKING_URI: str = f"sqlite:///{
+    os.path.join(PROJECT_ROOT, 'mlflow.db')}"
 
 # ========================== TRAINING =======================================
 

@@ -215,16 +215,18 @@ def plot_learning_curves(
     """Отрисовка кривых обучения (Loss vs Epochs)."""
     fig, ax = plt.subplots(figsize=(10, 6))
     epochs = range(1, len(train_losses) + 1)
-    
-    ax.plot(epochs, train_losses, label=f"Train {metric_name}", color="#2563eb", linewidth=2)
-    ax.plot(epochs, val_losses, label=f"Val {metric_name}", color="#dc2626", linewidth=2)
-    
+
+    ax.plot(epochs, train_losses, label=f"Train {
+            metric_name}", color="#2563eb", linewidth=2)
+    ax.plot(epochs, val_losses, label=f"Val {
+            metric_name}", color="#dc2626", linewidth=2)
+
     ax.set_xlabel("Эпохи / Итерации")
     ax.set_ylabel(metric_name)
     ax.set_title(f"Кривые обучения ({metric_name})", fontweight="bold")
     ax.legend()
     ax.grid(True, alpha=0.3)
-    
+
     os.makedirs(os.path.dirname(save_path), exist_ok=True)
     fig.savefig(save_path, dpi=300, bbox_inches="tight")
     plt.close(fig)

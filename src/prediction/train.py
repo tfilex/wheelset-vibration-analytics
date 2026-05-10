@@ -13,6 +13,16 @@ Usage:
     uv run python src/prediction/train.py
 """
 
+from utils import get_device, train_one_epoch, evaluate, plot_rul, plot_residuals, plot_learning_curves
+from model import UniversalHybridRULNet, create_cnn_encoder
+from data_loader import RULDataset
+from config import (
+    RANDOM_SEED, DATA_BASE_DIR, TRAIN_DIR, VAL_DIR, TEST_DIR,
+    FIGURES_DIR, MODELS_DIR, MLFLOW_TRACKING_URI,
+    N_TRIALS, EPOCHS, PATIENCE,
+    CNN_BACKBONE, CNN_IN_CHANNELS, CNN_FREEZE, CNN_CHECKPOINT_PATH,
+    NAS_TEMPORAL_TYPES,
+)
 import os
 import sys
 import copy
@@ -29,16 +39,6 @@ import torch.optim as optim
 from torch.utils.data import DataLoader
 
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
-from config import (
-    RANDOM_SEED, DATA_BASE_DIR, TRAIN_DIR, VAL_DIR, TEST_DIR,
-    FIGURES_DIR, MODELS_DIR, MLFLOW_TRACKING_URI,
-    N_TRIALS, EPOCHS, PATIENCE,
-    CNN_BACKBONE, CNN_IN_CHANNELS, CNN_FREEZE, CNN_CHECKPOINT_PATH,
-    NAS_TEMPORAL_TYPES,
-)
-from data_loader import RULDataset
-from model import UniversalHybridRULNet, create_cnn_encoder
-from utils import get_device, train_one_epoch, evaluate, plot_rul, plot_residuals, plot_learning_curves
 
 matplotlib.use("Agg")
 warnings.filterwarnings("ignore")
@@ -107,7 +107,8 @@ def objective(trial: optuna.Trial, device: torch.device) -> float:
         - hidden_size: размер скрытого состояния
         - dropout: вероятность dropout
     """
-    temporal_type = trial.suggest_categorical("temporal_type", NAS_TEMPORAL_TYPES)
+    temporal_type = trial.suggest_categorical(
+        "temporal_type", NAS_TEMPORAL_TYPES)
     lr = trial.suggest_float("lr", 1e-4, 5e-3, log=True)
     seq_length = trial.suggest_categorical("seq_length", SEQ_LENGTH_CANDIDATES)
     hidden_size = trial.suggest_categorical("hidden_size", [32, 64, 128])
@@ -177,7 +178,8 @@ def objective(trial: optuna.Trial, device: torch.device) -> float:
 
     print(
         f"  Trial {trial.number:03d} | {temporal_type:12s} | "
-        f"lr={lr:.2e}, seq={seq_length}, batch={batch_size}, hid={hidden_size}, "
+        f"lr={lr:.2e}, seq={seq_length}, batch={
+            batch_size}, hid={hidden_size}, "
         f"drop={dropout:.2f} → val_mse={best_val_mse:.6f}"
     )
     return best_val_mse
@@ -195,7 +197,7 @@ def log_optuna_plots(study: optuna.Study, figures_dir: str) -> None:
         plt.savefig(hist_path, dpi=300)
         plt.close()
         mlflow.log_artifact(hist_path, artifact_path="figures")
-        
+
         # Param Importances
         vis.plot_param_importances(study)
         imp_path = os.path.join(figures_dir, "optuna_importances.png")
@@ -203,7 +205,7 @@ def log_optuna_plots(study: optuna.Study, figures_dir: str) -> None:
         plt.savefig(imp_path, dpi=300)
         plt.close()
         mlflow.log_artifact(imp_path, artifact_path="figures")
-        
+
         print("[INFO] Графики Optuna сохранены и залогированы.")
     except Exception as e:
         print(f"[WARNING] Не удалось сохранить графики Optuna: {e}")
@@ -244,7 +246,8 @@ def main() -> None:
 
         study = optuna.create_study(
             direction="minimize", study_name="xjtu_rul_nas",
-            pruner=optuna.pruners.MedianPruner(n_startup_trials=3, n_warmup_steps=2),
+            pruner=optuna.pruners.MedianPruner(
+                n_startup_trials=3, n_warmup_steps=2),
         )
         study.optimize(
             lambda trial: objective(trial, device),
@@ -253,7 +256,8 @@ def main() -> None:
 
         best = study.best_trial
         bp = best.params
-        print(f"\n[RESULT] Best trial #{best.number}: val_mse={best.value:.6f}")
+        print(f"\n[RESULT] Best trial #{
+              best.number}: val_mse={best.value:.6f}")
         print(f"[RESULT] Best params: {bp}")
 
         mlflow.log_params({f"best_{k}": v for k, v in bp.items()})
@@ -287,15 +291,19 @@ def main() -> None:
         optimizer = optim.Adam(
             filter(lambda p: p.requires_grad, final_model.parameters()), lr=best_lr,
         )
-        scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=EPOCHS)
+        scheduler = optim.lr_scheduler.CosineAnnealingLR(
+            optimizer, T_max=EPOCHS)
 
         train_ds = RULDataset(TRAIN_DIR, seq_length=best_seq)
         val_ds = RULDataset(VAL_DIR, seq_length=best_seq)
         test_ds = RULDataset(TEST_DIR, seq_length=best_seq)
 
-        train_loader = DataLoader(train_ds, batch_size=best_batch_size, shuffle=True)
-        val_loader = DataLoader(val_ds, batch_size=best_batch_size, shuffle=False)
-        test_loader = DataLoader(test_ds, batch_size=best_batch_size, shuffle=False)
+        train_loader = DataLoader(
+            train_ds, batch_size=best_batch_size, shuffle=True)
+        val_loader = DataLoader(
+            val_ds, batch_size=best_batch_size, shuffle=False)
+        test_loader = DataLoader(
+            test_ds, batch_size=best_batch_size, shuffle=False)
 
         best_val_mse = float("inf")
         epochs_no_improve = 0
@@ -356,7 +364,8 @@ def main() -> None:
 
             # После обучения сохраняем кривые обучения
             lc_path = os.path.join(FIGURES_DIR, "learning_curves_nn.png")
-            plot_learning_curves(train_hist, val_hist, lc_path, metric_name="MSE")
+            plot_learning_curves(train_hist, val_hist,
+                                 lc_path, metric_name="MSE")
             mlflow.log_artifact(lc_path, artifact_path="figures")
 
             if best_state is not None:
@@ -372,7 +381,8 @@ def main() -> None:
             test_loss, test_mae, test_preds, test_labels = evaluate(
                 final_model, test_loader, criterion, device,
             )
-            print(f"[RESULT] Test MSE: {test_loss:.6f} | Test MAE: {test_mae:.4f}")
+            print(f"[RESULT] Test MSE: {
+                  test_loss:.6f} | Test MAE: {test_mae:.4f}")
 
             mlflow.log_metrics({"test_mse": test_loss, "test_mae": test_mae})
 
@@ -383,7 +393,7 @@ def main() -> None:
 
             # Добавляем Residuals Plot
             res_path = os.path.join(FIGURES_DIR, "residuals_nn.png")
-            plot_residuals(test_labels, test_preds, res_path, 
+            plot_residuals(test_labels, test_preds, res_path,
                            model_name=f"CNN+{best_temporal.upper()}")
             mlflow.log_artifact(res_path, artifact_path="figures")
 

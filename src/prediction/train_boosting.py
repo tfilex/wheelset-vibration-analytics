@@ -11,6 +11,14 @@ Usage:
     uv run python src/prediction/train_boosting.py
 """
 
+from utils import get_device, plot_rul, plot_residuals, plot_learning_curves
+from model import create_cnn_encoder
+from data_loader import RULDataset
+from config import (
+    RANDOM_SEED, TRAIN_DIR, VAL_DIR, TEST_DIR,
+    FIGURES_DIR, MODELS_DIR, MLFLOW_TRACKING_URI,
+    CNN_BACKBONE, CNN_IN_CHANNELS,
+)
 import os
 import sys
 import warnings
@@ -38,14 +46,6 @@ except ImportError:
     _CATBOOST_AVAILABLE = False
 
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
-from config import (
-    RANDOM_SEED, TRAIN_DIR, VAL_DIR, TEST_DIR,
-    FIGURES_DIR, MODELS_DIR, MLFLOW_TRACKING_URI,
-    CNN_BACKBONE, CNN_IN_CHANNELS,
-)
-from data_loader import RULDataset
-from model import create_cnn_encoder
-from utils import get_device, plot_rul, plot_residuals, plot_learning_curves
 
 matplotlib.use("Agg")
 warnings.filterwarnings("ignore")
@@ -78,7 +78,8 @@ def extract_features(
         features: np.ndarray (n_samples, seq_length * encoder_dim).
         targets: np.ndarray (n_samples,).
     """
-    loader = DataLoader(dataset, batch_size=batch_size, shuffle=False, num_workers=2)
+    loader = DataLoader(dataset, batch_size=batch_size,
+                        shuffle=False, num_workers=2)
     encoder.eval()
 
     all_features: List[np.ndarray] = []
@@ -89,7 +90,8 @@ def extract_features(
             images = images.to(device)
             batch_size_actual, seq_len, channels, height, width = images.size()
 
-            cnn_in = images.view(batch_size_actual * seq_len, channels, height, width)
+            cnn_in = images.view(batch_size_actual *
+                                 seq_len, channels, height, width)
             feats = encoder(cnn_in)
             feats = feats.view(batch_size_actual, -1).cpu().numpy()
 
@@ -106,8 +108,9 @@ def plot_catboost_feature_importance(model, save_path: str, top_n: int = 20):
 
     feature_importance = model.get_feature_importance()
     feature_names = [f"feat_{i}" for i in range(len(feature_importance))]
-    
-    df = pd.DataFrame({'importance': feature_importance, 'name': feature_names})
+
+    df = pd.DataFrame(
+        {'importance': feature_importance, 'name': feature_names})
     df = df.sort_values(by='importance', ascending=False).head(top_n)
 
     plt.figure(figsize=(10, 8))
@@ -144,15 +147,18 @@ def main() -> None:
 
     # --- Извлечение фичей ---
     print("\n[INFO] Извлечение CNN-фичей из Train...")
-    X_train, y_train = extract_features(RULDataset(TRAIN_DIR, seq_length=SEQ_LENGTH), encoder, device)
+    X_train, y_train = extract_features(RULDataset(
+        TRAIN_DIR, seq_length=SEQ_LENGTH), encoder, device)
     print(f"  → X_train: {X_train.shape}, y_train: {y_train.shape}")
 
     print("[INFO] Извлечение CNN-фичей из Val...")
-    X_val, y_val = extract_features(RULDataset(VAL_DIR, seq_length=SEQ_LENGTH), encoder, device)
+    X_val, y_val = extract_features(RULDataset(
+        VAL_DIR, seq_length=SEQ_LENGTH), encoder, device)
     print(f"  → X_val: {X_val.shape}, y_val: {y_val.shape}")
 
     print("[INFO] Извлечение CNN-фичей из Test...")
-    X_test, y_test = extract_features(RULDataset(TEST_DIR, seq_length=SEQ_LENGTH), encoder, device)
+    X_test, y_test = extract_features(RULDataset(
+        TEST_DIR, seq_length=SEQ_LENGTH), encoder, device)
     print(f"  → X_test: {X_test.shape}, y_test: {y_test.shape}")
 
     # --- CatBoost ---
@@ -200,7 +206,7 @@ def main() -> None:
 
         # --- Дополнительная визуализация и интерпретируемость ---
         print("\n[INFO] Генерация дополнительных графиков...")
-        
+
         # 1. Residuals plot
         res_path = os.path.join(FIGURES_DIR, "residuals_boosting.png")
         plot_residuals(y_test, y_pred_test, res_path, model_name="CatBoost")
@@ -228,10 +234,12 @@ def main() -> None:
             try:
                 explainer = shap.TreeExplainer(model)
                 shap_values = explainer.shap_values(X_test)
-                
+
                 plt.figure(figsize=(12, 8))
-                shap.summary_plot(shap_values, X_test, show=False, max_display=20)
-                shap_path = os.path.join(FIGURES_DIR, "shap_summary_boosting.png")
+                shap.summary_plot(shap_values, X_test,
+                                  show=False, max_display=20)
+                shap_path = os.path.join(
+                    FIGURES_DIR, "shap_summary_boosting.png")
                 plt.savefig(shap_path, dpi=300, bbox_inches="tight")
                 plt.close()
                 mlflow.log_artifact(shap_path, artifact_path="figures")

@@ -30,7 +30,7 @@ SUPPORTED_MODELS: List[str] = [
     "mobilenet_v3_small",
     "efficientnet_b0",
     "shufflenet_v2_x1_0",
-    
+
     # ---- Современные SOTA CNN ----
     "convnext_tiny",
     "efficientnet_v2_s",
@@ -58,7 +58,8 @@ class SpectrogramAdapter(nn.Module):
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         if self.strict_size is not None:
-            x = F.interpolate(x, size=self.strict_size, mode="bilinear", align_corners=False)
+            x = F.interpolate(x, size=self.strict_size,
+                              mode="bilinear", align_corners=False)
         else:
             h, w = x.shape[2], x.shape[3]
             need_resize = h < self.min_spatial or w < self.min_spatial
@@ -205,7 +206,8 @@ def get_model(
         backbone.classifier[5] = nn.Linear(
             backbone.classifier[5].in_features, num_classes, bias=False
         )
-        strict_size = (224, 224)  # MaxViT требует строгое разрешение окна внимания
+        # MaxViT требует строгое разрешение окна внимания
+        strict_size = (224, 224)
 
     return SpectrogramAdapter(backbone, strict_size=strict_size)
 

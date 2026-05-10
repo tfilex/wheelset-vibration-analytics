@@ -96,15 +96,18 @@ def _load_classification_backbone_weights(
                 continue
         compatible_state[clean_key] = value
 
-    missing, unexpected = encoder.load_state_dict(compatible_state, strict=False)
+    missing, unexpected = encoder.load_state_dict(
+        compatible_state, strict=False)
     loaded = len(compatible_state)
     print(
-        f"[INFO] Loaded {loaded} CNN encoder tensors from classification checkpoint: "
+        f"[INFO] Loaded {
+            loaded} CNN encoder tensors from classification checkpoint: "
         f"{checkpoint_path}"
     )
     if loaded == 0:
         raise RuntimeError(
-            f"No compatible encoder weights were loaded from {checkpoint_path}. "
+            f"No compatible encoder weights were loaded from {
+                checkpoint_path}. "
             f"Missing={len(missing)}, unexpected={len(unexpected)}"
         )
 
@@ -190,6 +193,7 @@ class PositionalEncoding(nn.Module):
         max_len: Максимальная длина последовательности.
         dropout: Вероятность dropout.
     """
+
     def __init__(self, d_model: int, max_len: int = 500, dropout: float = 0.1):
         super().__init__()
         self.dropout = nn.Dropout(p=dropout)
@@ -197,7 +201,8 @@ class PositionalEncoding(nn.Module):
         pe = torch.zeros(max_len, d_model)
         position = torch.arange(0, max_len, dtype=torch.float).unsqueeze(1)
         div_term = torch.exp(
-            torch.arange(0, d_model, 2).float() * (-math.log(10000.0) / d_model)
+            torch.arange(0, d_model, 2).float() *
+            (-math.log(10000.0) / d_model)
         )
         pe[:, 0::2] = torch.sin(position * div_term)
         if d_model % 2 == 1:
@@ -233,6 +238,7 @@ class _TCNBlock(nn.Module):
         dilation: Фактор расширения (dilation).
         dropout: Вероятность dropout.
     """
+
     def __init__(
         self,
         in_ch: int,
@@ -243,15 +249,18 @@ class _TCNBlock(nn.Module):
     ):
         super().__init__()
         padding = (kernel_size - 1) * dilation  # Каузальный padding
-        self.conv1 = nn.Conv1d(in_ch, out_ch, kernel_size, padding=padding, dilation=dilation)
+        self.conv1 = nn.Conv1d(in_ch, out_ch, kernel_size,
+                               padding=padding, dilation=dilation)
         self.bn1 = nn.BatchNorm1d(out_ch)
-        self.conv2 = nn.Conv1d(out_ch, out_ch, kernel_size, padding=padding, dilation=dilation)
+        self.conv2 = nn.Conv1d(out_ch, out_ch, kernel_size,
+                               padding=padding, dilation=dilation)
         self.bn2 = nn.BatchNorm1d(out_ch)
         self.dropout = nn.Dropout(dropout)
         self.relu = nn.ReLU()
 
         # Skip-connection: адаптация размерности если in_ch != out_ch
-        self.skip = nn.Conv1d(in_ch, out_ch, 1) if in_ch != out_ch else nn.Identity()
+        self.skip = nn.Conv1d(
+            in_ch, out_ch, 1) if in_ch != out_ch else nn.Identity()
         self.padding = padding
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
@@ -286,6 +295,7 @@ class TCN(nn.Module):
         kernel_size: Размер ядра свёртки.
         dropout: Вероятность dropout.
     """
+
     def __init__(
         self,
         input_size: int,
@@ -299,7 +309,8 @@ class TCN(nn.Module):
         for i in range(num_layers):
             in_ch = input_size if i == 0 else hidden_size
             dilation = 2 ** i
-            layers.append(_TCNBlock(in_ch, hidden_size, kernel_size, dilation, dropout))
+            layers.append(_TCNBlock(in_ch, hidden_size,
+                          kernel_size, dilation, dropout))
         self.network = nn.Sequential(*layers)
         self.hidden_size = hidden_size
 
@@ -340,13 +351,15 @@ class MambaTemporalStub(nn.Module):
         hidden_size: Размер скрытого состояния.
         dropout: Вероятность dropout.
     """
+
     def __init__(self, input_size: int, hidden_size: int, dropout: float = 0.2):
         super().__init__()
         self.hidden_size = hidden_size
 
         if _MAMBA_AVAILABLE:
             self.proj_in = nn.Linear(input_size, hidden_size)
-            self.mamba = MambaBlock(d_model=hidden_size, d_state=16, d_conv=4, expand=2)
+            self.mamba = MambaBlock(
+                d_model=hidden_size, d_state=16, d_conv=4, expand=2)
             self.use_real_mamba = True
         else:
             import warnings
@@ -403,6 +416,7 @@ class UniversalHybridRULNet(nn.Module):
         dropout: Вероятность dropout.
         num_temporal_layers: Количество слоёв во временном блоке.
     """
+
     def __init__(
         self,
         encoder: nn.Module,
@@ -661,7 +675,8 @@ if __name__ == "__main__":
     print("=" * 60)
 
     # Фиктивный CNN-энкодер (resnet18)
-    encoder, enc_dim = create_cnn_encoder("resnet18", in_channels=3, freeze=True)
+    encoder, enc_dim = create_cnn_encoder(
+        "resnet18", in_channels=3, freeze=True)
     print(f"[INFO] Encoder: resnet18, feature_dim={enc_dim}")
 
     # Случайные входы
@@ -691,7 +706,8 @@ if __name__ == "__main__":
         assert output.shape == expected, (
             f"[FAIL] {m_type}: ожидалось {expected}, получено {output.shape}"
         )
-        n_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
+        n_params = sum(p.numel()
+                       for p in model.parameters() if p.requires_grad)
         print(f"  ✅ {m_type:12s} → output shape: {output.shape}  "
               f"(trainable params: {n_params:,})")
 
@@ -709,7 +725,8 @@ if __name__ == "__main__":
             output_m = model_mamba(images, speed)
         assert output_m.shape == (batch_size, 1)
         label = "mamba (real)" if _MAMBA_AVAILABLE else "mamba (GRU-fallback)"
-        n_params = sum(p.numel() for p in model_mamba.parameters() if p.requires_grad)
+        n_params = sum(p.numel()
+                       for p in model_mamba.parameters() if p.requires_grad)
         print(f"  ✅ {label:12s} → output shape: {output_m.shape}  "
               f"(trainable params: {n_params:,})")
     except Exception as e:

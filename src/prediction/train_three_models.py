@@ -96,7 +96,8 @@ def train_single_model(
     best_state = None
 
     for epoch in range(EPOCHS):
-        train_mse = train_one_epoch(model, train_loader, criterion, optimizer, device)
+        train_mse = train_one_epoch(
+            model, train_loader, criterion, optimizer, device)
         val_mse, val_mae, _, _ = evaluate(model, val_loader, criterion, device)
         scheduler.step()
 
@@ -120,7 +121,8 @@ def train_single_model(
 
         print(
             f"  [{temporal_type}] Epoch {epoch + 1:02d}/{EPOCHS} | "
-            f"train_mse={train_mse:.6f} | val_mse={val_mse:.6f} | val_mae={val_mae:.4f}"
+            f"train_mse={train_mse:.6f} | val_mse={
+                val_mse:.6f} | val_mae={val_mae:.4f}"
             + (" ★" if improved else "")
         )
 
@@ -132,7 +134,8 @@ def train_single_model(
         model.load_state_dict(best_state)
 
     test_mse, test_mae, _, _ = evaluate(model, test_loader, criterion, device)
-    print(f"  [{temporal_type}] Test MSE: {test_mse:.6f} | Test MAE: {test_mae:.4f}")
+    print(f"  [{temporal_type}] Test MSE: {
+          test_mse:.6f} | Test MAE: {test_mae:.4f}")
 
     os.makedirs(MODELS_DIR, exist_ok=True)
     ckpt_path = os.path.join(MODELS_DIR, f"best_rul_{temporal_type}.pth")
@@ -175,9 +178,12 @@ def main() -> None:
     val_ds = RULDataset(VAL_DIR, seq_length=seq_length)
     test_ds = RULDataset(TEST_DIR, seq_length=seq_length)
 
-    train_loader = DataLoader(train_ds, batch_size=batch_size, shuffle=True, num_workers=2)
-    val_loader = DataLoader(val_ds, batch_size=batch_size, shuffle=False, num_workers=2)
-    test_loader = DataLoader(test_ds, batch_size=batch_size, shuffle=False, num_workers=2)
+    train_loader = DataLoader(
+        train_ds, batch_size=batch_size, shuffle=True, num_workers=2)
+    val_loader = DataLoader(val_ds, batch_size=batch_size,
+                            shuffle=False, num_workers=2)
+    test_loader = DataLoader(
+        test_ds, batch_size=batch_size, shuffle=False, num_workers=2)
 
     mlflow.set_tracking_uri(MLFLOW_TRACKING_URI)
     mlflow.set_experiment(MLFLOW_EXPERIMENT)

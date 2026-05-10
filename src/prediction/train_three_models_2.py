@@ -99,6 +99,7 @@ FAST_CWT_SCALES = 8                 # меньше масштабов → быс
 INFERENCE_BENCHMARK_WARMUP_BATCHES = 3
 INFERENCE_BENCHMARK_MAX_BATCHES = 50
 
+
 @dataclass
 class DatasetConfig:
     """Конфигурация расширенного датасета."""
@@ -189,7 +190,8 @@ def _cnn_feature_cache_path(file_path: str, window_size: int, cwt_scales: int) -
     ckpt_tag = ckpt_name if os.path.exists(CNN_CHECKPOINT_PATH) else "no_ckpt"
     return os.path.join(
         CNN_FEATURE_CACHE_DIR,
-        f"{safe}_{backbone}_{ckpt_tag}_ch{CNN_IN_CHANNELS}_ws{window_size}_sc{cwt_scales}.npy",
+        f"{safe}_{backbone}_{ckpt_tag}_ch{CNN_IN_CHANNELS}_ws{
+            window_size}_sc{cwt_scales}.npy",
     )
 
 
@@ -486,12 +488,14 @@ def precompute_cnn_feature_cache(
         path
         for path in all_paths
         if not os.path.exists(
-            _cnn_feature_cache_path(path, train_ds.window_size, train_ds.cwt_scales)
+            _cnn_feature_cache_path(
+                path, train_ds.window_size, train_ds.cwt_scales)
         )
     ]
     print(
         "[INFO] CNN feature cache: "
-        f"{len(all_paths) - len(pending_paths)} hit, {len(pending_paths)} missing"
+        f"{len(all_paths) - len(pending_paths)
+           } hit, {len(pending_paths)} missing"
     )
 
     if not pending_paths:
@@ -520,7 +524,8 @@ def precompute_cnn_feature_cache(
                 _atomic_npy_save(cache_path, feature)
 
             done = min(start + len(batch_paths), len(pending_paths))
-            print(f"[INFO] CNN feature cache warmup: {done}/{len(pending_paths)}")
+            print(f"[INFO] CNN feature cache warmup: {
+                  done}/{len(pending_paths)}")
 
     return encoder_dim
 
@@ -819,7 +824,8 @@ def objective(
 
     if use_feature_cache:
         if encoder_dim is None:
-            raise ValueError("encoder_dim is required when use_feature_cache=True")
+            raise ValueError(
+                "encoder_dim is required when use_feature_cache=True")
         model = build_temporal_model(
             temporal_type, hidden_size, dropout, encoder_dim, device)
     else:
@@ -900,7 +906,8 @@ def fit_and_save(
 ) -> Dict[str, float]:
     if use_feature_cache:
         if encoder_dim is None:
-            raise ValueError("encoder_dim is required when use_feature_cache=True")
+            raise ValueError(
+                "encoder_dim is required when use_feature_cache=True")
         model = build_temporal_model(
             temporal_type=temporal_type,
             hidden_size=int(params["hidden_size"]),
@@ -1034,7 +1041,8 @@ def fit_and_save(
         if figures_dir is not None:
             os.makedirs(figures_dir, exist_ok=True)
             title_suffix = f" {ckpt_suffix.upper()}" if ckpt_suffix else ""
-            title_prefix = f"{temporal_type.upper()} ws={window_size}{title_suffix}"
+            title_prefix = f"{temporal_type.upper()} ws={window_size}{
+                title_suffix}"
 
             lc_path = os.path.join(figures_dir, f"{temporal_type}_ws{
                                    window_size}_learning_curves{suffix}.png")
@@ -1348,7 +1356,8 @@ def main() -> None:
     )
     n_trials = args.n_trials if args.n_trials is not None else int(
         defaults["n_trials"])
-    epochs = args.epochs if args.epochs is not None else int(defaults["epochs"])
+    epochs = args.epochs if args.epochs is not None else int(
+        defaults["epochs"])
     patience = args.patience if args.patience is not None else int(
         defaults["patience"])
     seq_stride = args.seq_stride if args.seq_stride is not None else int(

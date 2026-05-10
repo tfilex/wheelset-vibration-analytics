@@ -69,7 +69,8 @@ CLASS_NAMES: List[str] = [
 ]
 
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-MLFLOW_TRACKING_URI: str = f"sqlite:///{os.path.join(PROJECT_ROOT, 'mlflow.db')}"
+MLFLOW_TRACKING_URI: str = f"sqlite:///{
+    os.path.join(PROJECT_ROOT, 'mlflow.db')}"
 MLFLOW_EXPERIMENT: str = "CWRU_NAS_HPO_D070526_3"
 
 
@@ -127,46 +128,47 @@ def train_one_epoch(
     """Одна эпоха обучения. Возвращает (avg_loss, accuracy)."""
     model.train()
     running_loss, correct, total = 0.0, 0, 0
-    
+
     # Initialize scaler, handle cpu case
-    scaler = torch.amp.GradScaler(device.type) if device.type == 'cuda' else None
-    
+    scaler = torch.amp.GradScaler(
+        device.type) if device.type == 'cuda' else None
+
     time_masking = T.TimeMasking(time_mask_param=2)
     freq_masking = T.FrequencyMasking(freq_mask_param=15)
-    
+
     for inputs, labels in loader:
         inputs, labels = inputs.to(device), labels.to(device)
-        
+
         # SpecAugment (Time & Frequency Masking)
         inputs = time_masking(inputs)
         inputs = freq_masking(inputs)
-        
+
         optimizer.zero_grad()
-        
+
         # Mixed Precision
         if device.type == 'cuda':
             with torch.amp.autocast(device.type):
                 outputs = model(inputs)
                 loss = criterion(outputs, labels)
-            
+
             scaler.scale(loss).backward()
-            
+
             # Gradient clipping
             scaler.unscale_(optimizer)
             nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
-            
+
             scaler.step(optimizer)
             scaler.update()
         else:
             outputs = model(inputs)
             loss = criterion(outputs, labels)
             loss.backward()
-            
+
             # Gradient clipping
             nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
-            
+
             optimizer.step()
-            
+
         running_loss += loss.item() * inputs.size(0)
         _, predicted = torch.max(outputs, 1)
         total += labels.size(0)
@@ -196,7 +198,7 @@ def evaluate(
             correct += (predicted == labels).sum().item()
             all_preds.extend(predicted.cpu().numpy().tolist())
             all_labels.extend(labels.cpu().numpy().tolist())
-            
+
     f1 = f1_score(all_labels, all_preds, average="macro")
     return running_loss / total, correct / total, f1, all_preds, all_labels
 
@@ -216,20 +218,25 @@ def objective(
     weight_decay = trial.suggest_float("weight_decay", 1e-6, 1e-2, log=True)
     batch_size = trial.suggest_categorical("batch_size", [16, 32, 64])
     optimizer_name = trial.suggest_categorical("optimizer", ["Adam", "AdamW"])
-    scheduler_name = trial.suggest_categorical("scheduler", ["CosineAnnealingLR", "ReduceLROnPlateau"])
+    scheduler_name = trial.suggest_categorical(
+        "scheduler", ["CosineAnnealingLR", "ReduceLROnPlateau"])
 
-    train_loader = DataLoader(train_ds, batch_size=batch_size, shuffle=True, num_workers=4, pin_memory=True)
-    val_loader = DataLoader(val_ds, batch_size=batch_size, shuffle=False, num_workers=4, pin_memory=True)
+    train_loader = DataLoader(
+        train_ds, batch_size=batch_size, shuffle=True, num_workers=4, pin_memory=True)
+    val_loader = DataLoader(val_ds, batch_size=batch_size,
+                            shuffle=False, num_workers=4, pin_memory=True)
 
     model = get_model(model_name, num_classes=NUM_CLASSES).to(device)
     criterion = nn.CrossEntropyLoss(label_smoothing=0.1)
     opt_cls = optim.Adam if optimizer_name == "Adam" else optim.AdamW
     optimizer = opt_cls(model.parameters(), lr=lr, weight_decay=weight_decay)
-    
+
     if scheduler_name == "CosineAnnealingLR":
-        scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=HPO_EPOCHS)
+        scheduler = optim.lr_scheduler.CosineAnnealingLR(
+            optimizer, T_max=HPO_EPOCHS)
     else:
-        scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='max', factor=0.5, patience=2)
+        scheduler = optim.lr_scheduler.ReduceLROnPlateau(
+            optimizer, mode='max', factor=0.5, patience=2)
 
     best_val_f1 = 0.0
 
@@ -254,7 +261,7 @@ def objective(
             val_loss, val_acc, val_f1, _, _ = evaluate(
                 model, val_loader, criterion, device
             )
-            
+
             if scheduler_name == "ReduceLROnPlateau":
                 scheduler.step(val_f1)
             else:
@@ -262,7 +269,7 @@ def objective(
 
             if val_f1 > best_val_f1:
                 best_val_f1 = val_f1
-                
+
             mlflow.log_metrics({
                 "val_loss": val_loss,
                 "val_f1": val_f1,
@@ -277,7 +284,8 @@ def objective(
 
     print(
         f"  Trial {trial.number:03d} | {model_name:24s} | "
-        f"lr={lr:.2e}, wd={weight_decay:.2e}, bs={batch_size}, opt={optimizer_name}, sched={scheduler_name} "
+        f"lr={lr:.2e}, wd={weight_decay:.2e}, bs={batch_size}, opt={
+            optimizer_name}, sched={scheduler_name} "
         f"→ val_f1={best_val_f1:.4f}"
     )
     return best_val_f1
@@ -294,7 +302,7 @@ def plot_confusion_matrix(
 ) -> plt.Figure:
     """Матрица ошибок в академическом стиле (dpi=300)."""
     cm = confusion_matrix(labels, preds, labels=range(len(class_names)))
-    
+
     with np.errstate(divide='ignore', invalid='ignore'):
         cm_pct = cm.astype(float) / cm.sum(axis=1, keepdims=True) * 100
         cm_pct = np.nan_to_num(cm_pct)
@@ -466,7 +474,8 @@ def analyze_with_shap(
     # Вертикальный colorbar справа (без наезда на графики)
     if im is not None:
         cbar_ax = fig.add_axes([0.93, 0.15, 0.015, 0.7])
-        cbar = fig.colorbar(im, cax=cbar_ax, orientation="vertical", label="SHAP value")
+        cbar = fig.colorbar(
+            im, cax=cbar_ax, orientation="vertical", label="SHAP value")
         cbar.ax.tick_params(labelsize=8)
 
     os.makedirs(os.path.dirname(save_path), exist_ok=True)
@@ -555,13 +564,13 @@ def main() -> None:
         # Для честного финального обучения создадим cv_ds
         cv_indices = train_ds.indices + val_ds.indices
         cv_ds = Subset(train_ds.dataset, cv_indices)
-        
+
         # Используем cv_ds (train+val), чтобы сделать честный стратифицированный сплит
         labels_cv = [cv_ds.dataset.labels[i] for i in cv_ds.indices]
         retrain_idx, reval_idx, _, _ = train_test_split(
             range(len(cv_ds)), labels_cv, test_size=0.12, stratify=labels_cv, random_state=RANDOM_SEED + 1
         )
-        
+
         retrain_ds = Subset(cv_ds, retrain_idx)
         reval_ds = Subset(cv_ds, reval_idx)
 
@@ -580,12 +589,15 @@ def main() -> None:
         ).to(device)
         criterion = nn.CrossEntropyLoss(label_smoothing=0.1)
         opt_cls = optim.Adam if best_opt == "Adam" else optim.AdamW
-        final_optimizer = opt_cls(final_model.parameters(), lr=best_lr, weight_decay=best_wd)
-        
+        final_optimizer = opt_cls(
+            final_model.parameters(), lr=best_lr, weight_decay=best_wd)
+
         if best_scheduler == "CosineAnnealingLR":
-            final_scheduler = optim.lr_scheduler.CosineAnnealingLR(final_optimizer, T_max=FINAL_EPOCHS)
+            final_scheduler = optim.lr_scheduler.CosineAnnealingLR(
+                final_optimizer, T_max=FINAL_EPOCHS)
         else:
-            final_scheduler = optim.lr_scheduler.ReduceLROnPlateau(final_optimizer, mode='max', factor=0.5, patience=2)
+            final_scheduler = optim.lr_scheduler.ReduceLROnPlateau(
+                final_optimizer, mode='max', factor=0.5, patience=2)
 
         best_val_f1 = 0.0
         epochs_no_improve = 0
@@ -596,7 +608,6 @@ def main() -> None:
             "train_loss": [], "train_acc": [], "val_loss": [], "val_acc": [],
             "val_f1": [],
         }
-
 
         with mlflow.start_run(
             run_name=f"Final_{best_model_name}", nested=True
@@ -623,7 +634,7 @@ def main() -> None:
                 val_loss, val_acc, val_f1, _, _ = evaluate(
                     final_model, reval_loader, criterion, device,
                 )
-                
+
                 if best_scheduler == "ReduceLROnPlateau":
                     final_scheduler.step(val_f1)
                 else:
@@ -634,7 +645,7 @@ def main() -> None:
                 history["train_acc"].append(train_acc)
                 history["val_acc"].append(val_acc)
                 history["val_f1"].append(val_f1)
-                
+
                 current_lr = final_optimizer.param_groups[0]['lr']
 
                 mlflow.log_metrics({
@@ -743,16 +754,17 @@ def main() -> None:
             print("\n[INFO] Экспорт модели в ONNX...")
             dummy_input, _ = next(iter(test_loader))
             dummy_input = dummy_input[:1].to(device)
-            
-            onnx_path = os.path.join(MODELS_DIR, f"best_{best_model_name}.onnx")
+
+            onnx_path = os.path.join(
+                MODELS_DIR, f"best_{best_model_name}.onnx")
             torch.onnx.export(
-                final_model, 
-                dummy_input, 
-                onnx_path, 
-                export_params=True, 
-                opset_version=13, 
-                do_constant_folding=True, 
-                input_names=['input'], 
+                final_model,
+                dummy_input,
+                onnx_path,
+                export_params=True,
+                opset_version=13,
+                do_constant_folding=True,
+                input_names=['input'],
                 output_names=['output']
             )
             mlflow.log_artifact(onnx_path, artifact_path="production_models")
