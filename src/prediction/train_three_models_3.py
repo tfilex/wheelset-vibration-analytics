@@ -86,7 +86,7 @@ from utils import get_device  # noqa: E402
 
 
 DATASET_ROOT = "data/raw/XJTU-SY"
-MLFLOW_EXPERIMENT = "XJTU_SY_RUL_ThreeModels_v3"
+MLFLOW_EXPERIMENT = "XJTU_SY_RUL_ThreeModels_v7_unfrozen (v3)"
 TEMPORAL_TYPES = ["lstm", "gru", "transformer"]
 N_TRIALS = 30
 # FIX: Используем os.cpu_count() вместо жёстко прописанного 2,
@@ -97,7 +97,7 @@ WINDOW_SIZE_CANDIDATES = [1024, 2048]
 # Путь для дискового кэша CWT-скалограмм
 CWT_CACHE_DIR = "data/cache/cwt_scalograms"
 CNN_FEATURE_CACHE_DIR = "data/cache/cnn_features"
-FIGURES_BASE_DIR = "reports/figures/summary/train_three_models_3"
+FIGURES_BASE_DIR = "reports/figures/summary/train_three_models_3_unfrozen"
 
 # --fast режим: минимальные параметры для быстрого sanity-check.
 # Не изменяет архитектуру — проверяет именно pipeline end-to-end.
@@ -112,6 +112,23 @@ INFERENCE_BENCHMARK_WARMUP_BATCHES = 3
 INFERENCE_BENCHMARK_MAX_BATCHES = 50
 EMA_ALPHA = 0.3
 FINETUNE_WARMUP_EPOCHS = 3
+
+
+def build_run_artifact_suffix(
+    *,
+    script_file: str,
+    profile: str,
+    n_trials: int,
+    epochs: int,
+    use_feature_cache: bool,
+) -> str:
+    """Builds a filesystem-safe suffix with the key launch parameters."""
+    script_name = os.path.splitext(os.path.basename(script_file))[0]
+    feature_status = "featurecache_on" if use_feature_cache else "featurecache_off"
+    return (
+        f"{script_name}_profile{profile}_"
+        f"trials{n_trials}_epochs{epochs}_{feature_status}"
+    )
 
 
 @dataclass
@@ -739,8 +756,17 @@ def evaluate(
             total += labels.size(0)
             preds.extend(outputs.cpu().numpy().flatten().tolist())
             labels_list.extend(labels.cpu().numpy().flatten().tolist())
-    mae = mean_absolute_error(labels_list, preds)
     avg_loss = running_loss / max(total, 1)
+    y_true = np.asarray(labels_list, dtype=np.float64)
+    y_pred = np.asarray(preds, dtype=np.float64)
+    if (
+        total == 0
+        or not np.isfinite(avg_loss)
+        or not np.all(np.isfinite(y_true))
+        or not np.all(np.isfinite(y_pred))
+    ):
+        return float("inf"), float("inf"), float("nan"), float("inf"), float("inf")
+    mae = mean_absolute_error(labels_list, preds)
     metrics = _regression_metrics(labels_list, preds)
     return avg_loss, mae, metrics["r2"], metrics["rmse"], metrics["phm_score"]
 
@@ -768,8 +794,25 @@ def evaluate_with_predictions(
             total += labels.size(0)
             preds.extend(outputs.cpu().numpy().flatten().tolist())
             labels_list.extend(labels.cpu().numpy().flatten().tolist())
-    mae = mean_absolute_error(labels_list, preds)
     avg_loss = running_loss / max(total, 1)
+    y_true = np.asarray(labels_list, dtype=np.float64)
+    y_pred = np.asarray(preds, dtype=np.float64)
+    if (
+        total == 0
+        or not np.isfinite(avg_loss)
+        or not np.all(np.isfinite(y_true))
+        or not np.all(np.isfinite(y_pred))
+    ):
+        return (
+            float("inf"),
+            float("inf"),
+            float("nan"),
+            float("inf"),
+            float("inf"),
+            preds,
+            labels_list,
+        )
+    mae = mean_absolute_error(labels_list, preds)
     metrics = _regression_metrics(labels_list, preds)
     return (
         avg_loss,
@@ -942,11 +985,13 @@ def save_optuna_dashboard(study: optuna.Study, out_dir: str, prefix: str) -> Non
 def save_summary_dashboard(
     summary_rows: List[Dict[str, object]],
     out_dir: str,
+    file_suffix: str = "",
 ) -> None:
     """Сводная таблица и bar chart по test_mse/test_mae."""
     os.makedirs(out_dir, exist_ok=True)
     df = pd.DataFrame(summary_rows)
-    csv_path = os.path.join(out_dir, "summary_metrics.csv")
+    suffix = f"_{file_suffix}" if file_suffix else ""
+    csv_path = os.path.join(out_dir, f"summary_metrics{suffix}.csv")
     df.to_csv(csv_path, index=False)
 
     if df.empty:
@@ -963,7 +1008,7 @@ def save_summary_dashboard(
     ax.tick_params(axis="x", rotation=45)
     ax.grid(True, axis="y", alpha=0.3)
     fig.tight_layout()
-    fig.savefig(os.path.join(out_dir, "summary_test_mse_bar.png"),
+    fig.savefig(os.path.join(out_dir, f"summary_test_mse_bar{suffix}.png"),
                 dpi=300, bbox_inches="tight")
     plt.close(fig)
 
@@ -1048,6 +1093,8 @@ def objective(
                 )
                 val_mse, val_mae, val_r2, val_rmse, val_phm = evaluate(
                     model, val_loader, criterion, device)
+                if not np.isfinite(val_mse):
+                    raise optuna.exceptions.TrialPruned()
                 mlflow.log_metrics(
                     {
                         "train_mse": train_mse,
@@ -1446,7 +1493,7 @@ def run_for_window_size(
     best_params_by_model: Dict[str, Dict[str, float]] = {}
     results: Dict[str, Dict[str, float]] = {}
 
-    run_tag = profile
+    run_tag = ckpt_suffix or profile
     window_figures_dir = None
     if figures_root is not None:
         window_figures_dir = os.path.join(figures_root, f"ws{cfg.window_size}")
@@ -1518,6 +1565,7 @@ def run_for_window_size(
                 ),
                 n_trials=n_trials,
                 show_progress_bar=True,
+                catch=(Exception,),
             )
             best_params = study.best_trial.params
             best_params_by_model[temporal_type] = best_params
@@ -1655,7 +1703,13 @@ def main() -> None:
         defaults["cwt_scales"])
     rul_clip = args.rul_clip if args.rul_clip is not None else float(
         defaults["rul_clip"])
-    ckpt_suffix = str(defaults["ckpt_suffix"])
+    ckpt_suffix = build_run_artifact_suffix(
+        script_file=__file__,
+        profile=profile,
+        n_trials=n_trials,
+        epochs=epochs,
+        use_feature_cache=args.feature_cache,
+    )
 
     if profile == "fast":
         print("\n" + "!" * 78)
@@ -1685,6 +1739,7 @@ def main() -> None:
     mlflow.set_tracking_uri(MLFLOW_TRACKING_URI)
     mlflow.set_experiment(experiment_name)
     print(f"[INFO] MLflow experiment: {experiment_name}")
+    print(f"[INFO] Artifact suffix: {ckpt_suffix}")
 
     figures_root = os.path.join(FIGURES_BASE_DIR, profile)
     os.makedirs(figures_root, exist_ok=True)
@@ -1721,6 +1776,7 @@ def main() -> None:
             summary_rows.append(
                 {
                     "mode": profile,
+                    "artifact_suffix": ckpt_suffix,
                     "window_size": ws,
                     "temporal_type": model_name,
                     "best_val_mse": m["best_val_mse"],
@@ -1758,7 +1814,7 @@ def main() -> None:
         print("\n[!] Это был --fast прогон. Запусти без флага для полного обучения.")
 
     # Сохраняем общий дашборд/сводку по текущему запуску.
-    save_summary_dashboard(summary_rows, figures_root)
+    save_summary_dashboard(summary_rows, figures_root, file_suffix=ckpt_suffix)
     print(f"[INFO] Сводные визуализации сохранены в: {figures_root}")
 
 
