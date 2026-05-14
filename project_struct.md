@@ -43,7 +43,7 @@
   - `lstm`
   - `gru`
   - `transformer`
-- `train_three_models_2.py` — расширенный сценарий RUL:
+- `train_rul_hybrid_v2.py` — расширенный сценарий RUL:
   - объединяет несколько подшипников и режимов XJTU-SY;
   - поддерживает профили `fast`, `balanced`, `full`;
   - умеет запускать отдельные temporal-модели через `--temporal-types`;
@@ -51,6 +51,12 @@
     - `--feature-cache` (по умолчанию): быстрое обучение temporal-блока по кэшированным CNN-фичам;
     - `--no-feature-cache`: полный forward CNN+temporal с fine-tuning CNN под RUL;
   - логирует метрики качества, графики Optuna, learning curves, residuals, RUL prediction и скорость инференса.
+- `train_rul_hybrid_v3.py` — текущий RUL pipeline CNN+temporal:
+  - HPO работает на frozen CNN feature-cache;
+  - final fit дообучает CNN end-to-end;
+  - поддерживает AsymmetricHuberLoss, monotonicity penalty, EMA-графики, R2/RMSE/PHM score;
+  - включает параметры запуска в имена checkpoint и графиков.
+- `train_three_models_2.py`, `train_three_models_3.py` — compatibility wrappers для старых команд.
 
 ## Модели и артефакты
 
@@ -60,9 +66,12 @@
   - прогноз RUL (Optuna-финал): `best_rul_model.pth`;
   - прогноз RUL (три фиксированные модели):  
     `best_rul_lstm.pth`, `best_rul_gru.pth`, `best_rul_transformer.pth`.
-  - прогноз RUL v2: `models/preds_2/best_rul_<temporal>_ws<window>_v2*.pth`.
+  - прогноз RUL v2: `models/preds_2_frozen/best_rul_<temporal>_ws<window>_v2*.pth`;
+  - прогноз RUL v3 fine-tune: `models/rul_hybrid_v3_finetune/best_rul_<temporal>_ws<window>_v3*.pth`.
 - `reports/figures/` — итоговые графики для анализа и отчетов.
-  - `reports/figures/summary/train_three_models_2/<profile>/ws<window>/` — графики расширенного RUL pipeline.
+  - `reports/figures/summary/train_rul_hybrid_v2_frozen/<profile>/ws<window>/` — графики v2;
+  - `reports/figures/summary/rul_hybrid_v3_finetune/<profile>/ws<window>/` — графики текущего v3 fine-tune pipeline.
+- `reports/logs/rul_hybrid_v3_finetune/` — логи matrix runner для текущего v3 fine-tune pipeline.
 - `mlflow.db`, `mlruns/`, `mlartifacts/` — трекинг экспериментов через MLflow.
 - `run_mlflow.sh` — быстрый запуск локального UI MLflow.
 
@@ -74,12 +83,14 @@
   `uv run python src/prediction/train.py`
 - RUL без Optuna, последовательное обучение трех моделей:  
   `uv run python src/prediction/train_three_models.py`
-- RUL v2, быстрый дневной прогон по кэшированным CNN-фичам:  
-  `uv run python src/prediction/train_three_models_2.py --profile balanced --n-trials 30`
+- RUL hybrid v2, быстрый дневной прогон по кэшированным CNN-фичам:  
+  `uv run python src/prediction/train_rul_hybrid_v2.py --profile balanced --n-trials 30`
 - RUL v2, только Transformer в стандартный MLflow experiment:  
-  `uv run python src/prediction/train_three_models_2.py --profile balanced --n-trials 30 --temporal-types transformer --experiment-name XJTU_SY_RUL_ThreeModels_v2`
+  `uv run python src/prediction/train_rul_hybrid_v2.py --profile balanced --n-trials 30 --temporal-types transformer --experiment-name XJTU_SY_RUL_HybridTemporal_v2_frozen`
 - RUL v2, fine-tuning CNN под RUL без feature-cache:  
-  `uv run python src/prediction/train_three_models_2.py --profile balanced --n-trials 30 --temporal-types lstm gru transformer --no-feature-cache --num-workers 0`
+  `uv run python src/prediction/train_rul_hybrid_v2.py --profile balanced --n-trials 30 --temporal-types lstm gru transformer --no-feature-cache --num-workers 0`
+- RUL hybrid v3, текущий двухфазный pipeline:  
+  `uv run python src/prediction/train_rul_hybrid_v3.py --profile balanced --n-trials 30 --epochs 40 --temporal-types lstm gru transformer --num-workers 0`
 - RUL бейзлайн на бустинге:  
   `uv run python src/prediction/train_boosting.py`
 
