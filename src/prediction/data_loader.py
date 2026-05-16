@@ -38,8 +38,10 @@ class RULDataset(Dataset):
 
         self.total_files = len(self.file_paths)
         if self.total_files < self.seq_length:
-            raise ValueError(f"Not enough files ({self.total_files}) for sequence length {
-                             self.seq_length}.")
+            raise ValueError(
+                f"Not enough files ({self.total_files}) "
+                f"for sequence length {self.seq_length}."
+            )
 
     def __len__(self):
         # We can form sequences starting from index 0 up to total_files - seq_length

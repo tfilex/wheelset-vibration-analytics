@@ -100,14 +100,12 @@ def _load_classification_backbone_weights(
         compatible_state, strict=False)
     loaded = len(compatible_state)
     print(
-        f"[INFO] Loaded {
-            loaded} CNN encoder tensors from classification checkpoint: "
-        f"{checkpoint_path}"
+        f"[INFO] Loaded {loaded} CNN encoder tensors "
+        f"from classification checkpoint: {checkpoint_path}"
     )
     if loaded == 0:
         raise RuntimeError(
-            f"No compatible encoder weights were loaded from {
-                checkpoint_path}. "
+            f"No compatible encoder weights were loaded from {checkpoint_path}. "
             f"Missing={len(missing)}, unexpected={len(unexpected)}"
         )
 

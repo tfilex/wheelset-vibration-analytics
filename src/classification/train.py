@@ -69,8 +69,7 @@ CLASS_NAMES: List[str] = [
 ]
 
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-MLFLOW_TRACKING_URI: str = f"sqlite:///{
-    os.path.join(PROJECT_ROOT, 'mlflow.db')}"
+MLFLOW_TRACKING_URI: str = f"sqlite:///{os.path.join(PROJECT_ROOT, 'mlflow.db')}"
 MLFLOW_EXPERIMENT: str = "CWRU_NAS_HPO_D070526_3"
 
 
@@ -284,8 +283,8 @@ def objective(
 
     print(
         f"  Trial {trial.number:03d} | {model_name:24s} | "
-        f"lr={lr:.2e}, wd={weight_decay:.2e}, bs={batch_size}, opt={
-            optimizer_name}, sched={scheduler_name} "
+        f"lr={lr:.2e}, wd={weight_decay:.2e}, bs={batch_size}, "
+        f"opt={optimizer_name}, sched={scheduler_name} "
         f"→ val_f1={best_val_f1:.4f}"
     )
     return best_val_f1

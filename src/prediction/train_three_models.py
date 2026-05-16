@@ -121,8 +121,8 @@ def train_single_model(
 
         print(
             f"  [{temporal_type}] Epoch {epoch + 1:02d}/{EPOCHS} | "
-            f"train_mse={train_mse:.6f} | val_mse={
-                val_mse:.6f} | val_mae={val_mae:.4f}"
+            f"train_mse={train_mse:.6f} | val_mse={val_mse:.6f} | "
+            f"val_mae={val_mae:.4f}"
             + (" ★" if improved else "")
         )
 
@@ -134,8 +134,7 @@ def train_single_model(
         model.load_state_dict(best_state)
 
     test_mse, test_mae, _, _ = evaluate(model, test_loader, criterion, device)
-    print(f"  [{temporal_type}] Test MSE: {
-          test_mse:.6f} | Test MAE: {test_mae:.4f}")
+    print(f"  [{temporal_type}] Test MSE: {test_mse:.6f} | Test MAE: {test_mae:.4f}")
 
     os.makedirs(MODELS_DIR, exist_ok=True)
     ckpt_path = os.path.join(MODELS_DIR, f"best_rul_{temporal_type}.pth")

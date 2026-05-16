@@ -178,8 +178,8 @@ def objective(trial: optuna.Trial, device: torch.device) -> float:
 
     print(
         f"  Trial {trial.number:03d} | {temporal_type:12s} | "
-        f"lr={lr:.2e}, seq={seq_length}, batch={
-            batch_size}, hid={hidden_size}, "
+        f"lr={lr:.2e}, seq={seq_length}, batch={batch_size}, "
+        f"hid={hidden_size}, "
         f"drop={dropout:.2f} → val_mse={best_val_mse:.6f}"
     )
     return best_val_mse
@@ -256,8 +256,7 @@ def main() -> None:
 
         best = study.best_trial
         bp = best.params
-        print(f"\n[RESULT] Best trial #{
-              best.number}: val_mse={best.value:.6f}")
+        print(f"\n[RESULT] Best trial #{best.number}: val_mse={best.value:.6f}")
         print(f"[RESULT] Best params: {bp}")
 
         mlflow.log_params({f"best_{k}": v for k, v in bp.items()})
@@ -381,8 +380,7 @@ def main() -> None:
             test_loss, test_mae, test_preds, test_labels = evaluate(
                 final_model, test_loader, criterion, device,
             )
-            print(f"[RESULT] Test MSE: {
-                  test_loss:.6f} | Test MAE: {test_mae:.4f}")
+            print(f"[RESULT] Test MSE: {test_loss:.6f} | Test MAE: {test_mae:.4f}")
 
             mlflow.log_metrics({"test_mse": test_loss, "test_mae": test_mae})
 

@@ -200,8 +200,7 @@ def main():
 
     defect_folders = sorted([f for f in os.listdir(
         data_dir) if os.path.isdir(os.path.join(data_dir, f))])
-    print(f"Найдено {len(defect_folders)
-                     } классов дефектов. Начинаю обработку...\n")
+    print(f"Найдено {len(defect_folders)} классов дефектов. Начинаю обработку...\n")
 
     signals_dict = {}
     time_arr = None

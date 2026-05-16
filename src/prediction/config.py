@@ -21,8 +21,7 @@ MODELS_DIR: str = "models"
 # src/prediction/config.py → src/prediction → src → VKR (project root)
 PROJECT_ROOT = os.path.dirname(os.path.dirname(
     os.path.dirname(os.path.abspath(__file__))))
-MLFLOW_TRACKING_URI: str = f"sqlite:///{
-    os.path.join(PROJECT_ROOT, 'mlflow.db')}"
+MLFLOW_TRACKING_URI: str = f"sqlite:///{os.path.join(PROJECT_ROOT, 'mlflow.db')}"
 
 # ========================== TRAINING =======================================
 
@@ -36,8 +35,9 @@ PATIENCE: int = 4
 CNN_BACKBONE: str = "resnet18"
 CNN_IN_CHANNELS: int = 2  # Горизонтальный + вертикальный вибросигналы
 CNN_FREEZE: bool = True
-CNN_CHECKPOINT_PATH: str = os.path.join(MODELS_DIR, "cnn", "best_resnet18.pth")
-
+_rul_ckpt = os.path.join(MODELS_DIR, "cnn", "best_resnet18_rul.pth")
+_cls_ckpt = os.path.join(MODELS_DIR, "cnn", "best_resnet18.pth")
+CNN_CHECKPOINT_PATH: str = _rul_ckpt if os.path.exists(_rul_ckpt) else _cls_ckpt
 # ========================== NAS ============================================
 
 NAS_TEMPORAL_TYPES: List[str] = ["lstm", "gru", "transformer"]

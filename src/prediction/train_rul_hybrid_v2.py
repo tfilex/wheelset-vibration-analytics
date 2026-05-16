@@ -227,8 +227,8 @@ def _cnn_feature_cache_path(file_path: str, window_size: int, cwt_scales: int) -
     ckpt_tag = ckpt_name if os.path.exists(CNN_CHECKPOINT_PATH) else "no_ckpt"
     return os.path.join(
         CNN_FEATURE_CACHE_DIR,
-        f"{safe}_{backbone}_{ckpt_tag}_ch{CNN_IN_CHANNELS}_ws{
-            window_size}_sc{cwt_scales}.npy",
+        f"{safe}_{backbone}_{ckpt_tag}_ch{CNN_IN_CHANNELS}_ws"
+        f"{window_size}_sc{cwt_scales}.npy",
     )
 
 
@@ -531,8 +531,7 @@ def precompute_cnn_feature_cache(
     ]
     print(
         "[INFO] CNN feature cache: "
-        f"{len(all_paths) - len(pending_paths)
-           } hit, {len(pending_paths)} missing"
+        f"{len(all_paths) - len(pending_paths)} hit, {len(pending_paths)} missing"
     )
 
     if not pending_paths:
@@ -561,8 +560,7 @@ def precompute_cnn_feature_cache(
                 _atomic_npy_save(cache_path, feature)
 
             done = min(start + len(batch_paths), len(pending_paths))
-            print(f"[INFO] CNN feature cache warmup: {
-                  done}/{len(pending_paths)}")
+            print(f"[INFO] CNN feature cache warmup: {done}/{len(pending_paths)}")
 
     return encoder_dim
 
@@ -858,8 +856,7 @@ def save_summary_dashboard(
 
     # Barplot по test_mse
     fig, ax = plt.subplots(figsize=(12, 6))
-    labels = [f"ws{r['window_size']}_{
-        r['temporal_type']}" for _, r in df.iterrows()]
+    labels = [f"ws{r['window_size']}_{r['temporal_type']}" for _, r in df.iterrows()]
     values = df["test_mse"].values
     ax.bar(labels, values, color="#2563eb")
     ax.set_ylabel("Test MSE")
@@ -1129,8 +1126,8 @@ def fit_and_save(
 
         os.makedirs(PREDS2_MODELS_DIR, exist_ok=True)
         ckpt_path = os.path.join(
-            PREDS2_MODELS_DIR, f"best_rul_{temporal_type}_ws{
-                window_size}_v2{suffix}.pth"
+            PREDS2_MODELS_DIR,
+            f"best_rul_{temporal_type}_ws{window_size}_v2{suffix}.pth",
         )
         torch.save(
             {
@@ -1154,11 +1151,12 @@ def fit_and_save(
         if figures_dir is not None:
             os.makedirs(figures_dir, exist_ok=True)
             title_suffix = f" {ckpt_suffix.upper()}" if ckpt_suffix else ""
-            title_prefix = f"{temporal_type.upper()} ws={window_size}{
-                title_suffix}"
+            title_prefix = f"{temporal_type.upper()} ws={window_size}{title_suffix}"
 
-            lc_path = os.path.join(figures_dir, f"{temporal_type}_ws{
-                                   window_size}_learning_curves{suffix}.png")
+            lc_path = os.path.join(
+                figures_dir,
+                f"{temporal_type}_ws{window_size}_learning_curves{suffix}.png",
+            )
             plot_learning_curves(
                 train_hist,
                 val_hist,
@@ -1167,8 +1165,10 @@ def fit_and_save(
             )
             mlflow.log_artifact(lc_path, artifact_path="figures")
 
-            rul_path = os.path.join(figures_dir, f"{temporal_type}_ws{
-                                    window_size}_rul_prediction{suffix}.png")
+            rul_path = os.path.join(
+                figures_dir,
+                f"{temporal_type}_ws{window_size}_rul_prediction{suffix}.png",
+            )
             plot_rul_prediction(
                 test_labels,
                 test_preds,
@@ -1177,8 +1177,10 @@ def fit_and_save(
             )
             mlflow.log_artifact(rul_path, artifact_path="figures")
 
-            res_path = os.path.join(figures_dir, f"{temporal_type}_ws{
-                                    window_size}_residuals{suffix}.png")
+            res_path = os.path.join(
+                figures_dir,
+                f"{temporal_type}_ws{window_size}_residuals{suffix}.png",
+            )
             plot_residuals(
                 test_labels,
                 test_preds,
@@ -1248,8 +1250,7 @@ def run_for_window_size(
         seq_stride=cfg.val_test_stride,
         cwt_scales=cfg.cwt_scales,
     )
-    print(f"[INFO] Samples: train={len(train_ds)}, val={
-          len(val_ds)}, test={len(test_ds)}")
+    print(f"[INFO] Samples: train={len(train_ds)}, val={len(val_ds)}, test={len(test_ds)}")
 
     encoder_dim: Optional[int] = None
     hpo_train_ds: Dataset = train_ds
@@ -1321,8 +1322,13 @@ def run_for_window_size(
 
         for temporal_type in temporal_types:
             print("\n" + "=" * 70)
-            print(color_text(f"[INFO] Optuna for {
-                  temporal_type.upper()} ({n_trials} trials)", "magenta", bold=True))
+            print(
+                color_text(
+                    f"[INFO] Optuna for {temporal_type.upper()} ({n_trials} trials)",
+                    "magenta",
+                    bold=True,
+                )
+            )
             print("=" * 70)
             if profile == "full":
                 n_startup = min(5, max(1, n_trials // 3))
@@ -1332,8 +1338,10 @@ def run_for_window_size(
                 n_warmup_steps = 2
             study = optuna.create_study(
                 direction="minimize",
-                study_name=f"rul_hybrid_v2_{run_tag}_{feature_status}_{
-                    temporal_type}_ws{cfg.window_size}",
+                study_name=(
+                    f"rul_hybrid_v2_{run_tag}_{feature_status}_"
+                    f"{temporal_type}_ws{cfg.window_size}"
+                ),
                 pruner=optuna.pruners.MedianPruner(
                     n_startup_trials=n_startup, n_warmup_steps=n_warmup_steps
                 ),
