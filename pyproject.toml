@@ -1,0 +1,40 @@
+[project]
+name = "wheelset-vibration-analytics"
+version = "0.1.0"
+description = "Анализ вибросигналов подшипников для магистерской диссертации"
+authors = [
+    { name = "Author" }
+]
+readme = "README.md"
+requires-python = ">=3.9"
+dependencies = [
+    "torch>=2.0.0",
+    "torchvision",
+    "mlflow",
+    "scipy",
+    "scikit-learn",
+    "matplotlib",
+    "seaborn",
+    "PyWavelets",
+    "numpy",
+    "optuna>=4.8.0",
+    "shap>=0.44.0",
+    "numba>=0.59.0",
+    "torchaudio>=2.11.0",
+    "onnxscript>=0.7.0",
+    "catboost>=1.2.10",
+    "plotly>=6.7.0",
+]
+
+[tool.uv]
+managed = true
+
+[tool.pytest.ini_options]
+addopts = ["-s"]
+pythonpath = ["."]
+testpaths = ["tests"]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.4.2",
+]
