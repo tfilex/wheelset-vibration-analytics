@@ -30,12 +30,16 @@ DEFAULT_DEMO_MODELS_DIR = PROJECT_ROOT / "models/demo_best"
 DEMO_MODELS_DIR = Path(
     os.getenv("DEMO_MODELS_DIR", str(DEFAULT_DEMO_MODELS_DIR))
 ).expanduser()
+DEMO_CLASSIFICATION_MODELS_DIR = DEMO_MODELS_DIR / "classification"
+DEMO_RUL_MODELS_DIR = DEMO_MODELS_DIR / "rul"
 
 FALLBACK_CWRU_CHECKPOINT = PROJECT_ROOT / "models/cnn/best_resnet18.pth"
 FALLBACK_RUL_CHECKPOINT = PROJECT_ROOT / "models/pred_0/best_rul_lstm.pth"
 FALLBACK_RUL_ENCODER_CHECKPOINT = PROJECT_ROOT / "models/cnn/best_resnet18_rul.pth"
-DEFAULT_CWRU_CHECKPOINT = DEMO_MODELS_DIR / "cwru_classifier.pth"
-DEFAULT_RUL_CHECKPOINT = DEMO_MODELS_DIR / "xjtu_rul.pth"
+DEFAULT_CWRU_CHECKPOINT = DEMO_CLASSIFICATION_MODELS_DIR / "cwru_classifier.pth"
+DEFAULT_RUL_CHECKPOINT = DEMO_RUL_MODELS_DIR / "xjtu_rul.pth"
+LEGACY_CWRU_CHECKPOINT = DEMO_MODELS_DIR / "cwru_classifier.pth"
+LEGACY_RUL_CHECKPOINT = DEMO_MODELS_DIR / "xjtu_rul.pth"
 
 DEMO_RUL_MODEL_DIRS = (
     PROJECT_ROOT / "models/pred_0",
@@ -326,12 +330,19 @@ class DemoRULDataset(torch.utils.data.Dataset):
         return x, y
 
 
-def _resolve_checkpoint(env_name: str, preferred: Path, fallback: Path) -> Path:
+def _resolve_checkpoint(
+    env_name: str,
+    preferred: Path,
+    fallback: Path,
+    legacy: Path | None = None,
+) -> Path:
     override = os.getenv(env_name)
     if override:
         return Path(override).expanduser()
     if preferred.exists():
         return preferred
+    if legacy and legacy.exists():
+        return legacy
     return fallback
 
 
@@ -340,6 +351,7 @@ def get_cwru_checkpoint_path() -> Path:
         "CWRU_CLASSIFIER_CHECKPOINT",
         DEFAULT_CWRU_CHECKPOINT,
         FALLBACK_CWRU_CHECKPOINT,
+        LEGACY_CWRU_CHECKPOINT,
     )
 
 
@@ -348,6 +360,7 @@ def get_rul_checkpoint_path() -> Path:
         "XJTU_RUL_CHECKPOINT",
         DEFAULT_RUL_CHECKPOINT,
         FALLBACK_RUL_CHECKPOINT,
+        LEGACY_RUL_CHECKPOINT,
     )
 
 
@@ -506,7 +519,9 @@ def discover_classification_models() -> list[ModelOption]:
     options: list[ModelOption] = []
     candidates = _checkpoint_candidates(
         DEFAULT_CWRU_CHECKPOINT,
+        LEGACY_CWRU_CHECKPOINT,
         FALLBACK_CWRU_CHECKPOINT,
+        DEMO_CLASSIFICATION_MODELS_DIR,
         PROJECT_ROOT / "models/cnn",
     )
 
@@ -530,7 +545,9 @@ def discover_rul_models() -> list[ModelOption]:
     ranked_options: list[tuple[float, ModelOption]] = []
     candidates = _checkpoint_candidates(
         DEFAULT_RUL_CHECKPOINT,
+        LEGACY_RUL_CHECKPOINT,
         FALLBACK_RUL_CHECKPOINT,
+        DEMO_RUL_MODELS_DIR,
         *DEMO_RUL_MODEL_DIRS,
     )
 

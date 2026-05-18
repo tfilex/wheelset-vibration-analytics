@@ -85,8 +85,8 @@
 
 Используемые модели в веб-демо:
 
-- классификация CWRU: `models/demo_best/cwru_classifier.pth`, если файл есть;
-- прогноз RUL XJTU-SY: совместимые checkpoint из `models/demo_best/`, `models/pred_0/`, `models/preds_2_unfrozen/`, `models/preds_3/`, `models/preds_3_frozen/`, `models/preds_3_rnn/`;
+- классификация CWRU: `models/demo_best/classification/cwru_classifier.pth`, если файл есть;
+- прогноз RUL XJTU-SY: `models/demo_best/rul/xjtu_rul.pth` и совместимые checkpoint из `models/demo_best/rul/`, `models/pred_0/`, `models/preds_2_unfrozen/`, `models/preds_3/`, `models/preds_3_frozen/`, `models/preds_3_rnn/`;
 - fallback для классификации: `models/cnn/best_resnet18.pth`;
 - fallback для RUL: `models/pred_0/best_rul_lstm.pth`.
 
@@ -94,7 +94,7 @@ RUL-модели сортируются по `test_mse`, поэтому лучш
 
 `models/preds_4_tcn/` и `models/preds_5_odd/` оставлены как экспериментальные артефакты, но не включены в автоматический выбор веб-демо: их лучшие checkpoint уступают текущему `transformer_improved` по `test_mse`, `test_mae` и `test_r2`, а подключение потребовало бы отдельных inference-голов без выигрыша в качестве.
 
-Можно положить лучшие checkpoint в `models/demo_best/` без изменения кода. Также поддерживаются переменные окружения:
+Можно положить лучшие checkpoint в `models/demo_best/classification/` и `models/demo_best/rul/` без изменения кода. Также поддерживаются переменные окружения:
 
 ```bash
 export DEMO_MODELS_DIR=/path/to/models
@@ -334,8 +334,8 @@ http://localhost:5000
 
 Точки интеграции находятся в `src/prediction/demo_inference.py`.
 
-1. Положить лучший классификатор в `models/demo_best/cwru_classifier.pth`.
-2. Положить лучшую RUL-модель в одну из поддерживаемых папок или в `models/demo_best/xjtu_rul.pth`.
+1. Положить лучший классификатор в `models/demo_best/classification/cwru_classifier.pth`.
+2. Положить лучшую RUL-модель в одну из поддерживаемых папок или в `models/demo_best/rul/xjtu_rul.pth`.
 3. Для новых RUL-архитектур добавить inference-head в `src/prediction/demo_inference.py`.
 4. Если меняется препроцессинг, обновить `_build_cwru_input()` или RUL dataset/pipeline в `predict_rul_series()`.
 
