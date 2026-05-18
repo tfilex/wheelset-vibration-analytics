@@ -32,6 +32,7 @@
 .
 ├── app.py                         # Streamlit UI: навигация и экраны демо
 ├── Dockerfile                     # Контейнер для запуска Streamlit-демо
+├── Makefile                       # Короткие команды для проверок и запуска
 ├── requirements.txt               # Минимальные зависимости веб-демо
 ├── pyproject.toml                 # Полные зависимости ML-проекта для uv
 ├── uv.lock                        # Lock-файл uv
@@ -58,6 +59,7 @@
 │   ├── prediction/                # Прогнозирование RUL XJTU-SY
 │   ├── demo/                      # Константы и вспомогательные данные демо
 │   └── visualization/             # Plotly-графики для демо
+├── tests/                         # Быстрые smoke-тесты без обучения моделей
 ├── scripts/                       # Сценарии запуска длительных экспериментов
 ├── scratch/                       # Черновые материалы
 └── scratch_scripts/               # Черновые скрипты
@@ -160,6 +162,70 @@ uv sync
 - `catboost`;
 - `plotly`, `matplotlib`, `seaborn`;
 - `numpy`, `pandas`.
+
+## Проверки и тесты
+
+В проект добавлены быстрые smoke-тесты на `pytest`. Они не запускают обучение, Optuna, MLflow и не требуют тяжелых checkpoint, а проверяют базовую работоспособность ключевых частей кода:
+
+- создание и forward-pass классификационной модели ResNet-18;
+- формы выходов temporal/RUL-моделей;
+- работу `RULDataset` на маленьких временных CSV;
+- структуру демонстрационных данных;
+- создание Plotly-графиков для Streamlit-демо.
+
+Для коротких команд есть `Makefile`:
+
+```bash
+make help
+```
+
+Основные цели:
+
+```bash
+make install      # uv sync --dev
+make test         # uv run pytest
+make smoke        # self-check скрипты моделей
+make check        # test + smoke
+make demo         # запуск Streamlit-демо
+```
+
+Установка полного окружения вместе с dev-зависимостями:
+
+```bash
+uv sync --dev
+```
+
+Запуск всех тестов:
+
+```bash
+uv run pytest
+```
+
+Более подробный вывод:
+
+```bash
+uv run pytest -v
+```
+
+Запуск отдельного файла:
+
+```bash
+uv run pytest tests/test_prediction_model.py
+```
+
+Перед переносом изменений в `main` рекомендуется выполнить минимум:
+
+```bash
+make check
+```
+
+То же самое длинными командами:
+
+```bash
+uv run pytest
+uv run python src/classification/model.py
+uv run python src/prediction/model.py
+```
 
 ## Данные
 
@@ -303,5 +369,6 @@ streamlit run app.py --server.port=8501 --server.address=0.0.0.0
 
 - `requirements.txt` предназначен для запуска веб-демо с реальными checkpoint.
 - Для исследовательских запусков использовать `uv sync` и команды `uv run ...`.
+- Для release-проверки использовать `uv run pytest`; длительное обучение моделей запускать отдельно вручную.
 - Веб-демо использует реальные сохраненные модели, а дашборд остается демонстрационным сценарием интерфейса.
 - Подробная карта исследовательских скриптов находится в `project_struct.md`.

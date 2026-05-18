@@ -28,3 +28,13 @@ dependencies = [
 
 [tool.uv]
 managed = true
+
+[tool.pytest.ini_options]
+addopts = ["-s"]
+pythonpath = ["."]
+testpaths = ["tests"]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.4.2",
+]
