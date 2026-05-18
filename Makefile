@@ -18,32 +18,42 @@ help:
 	@printf "  make docker-run [PORT=8501]     Run Streamlit demo Docker container\n"
 
 install:
-	uv sync --dev
+	@printf "[install] Syncing uv environment with dev dependencies\n"
+	@uv sync --dev
 
 test:
-	uv run pytest
+	@printf "[test] Running pytest\n"
+	@uv run pytest
 
 test-verbose:
-	uv run pytest -v
+	@printf "[test] Running pytest with verbose output\n"
+	@uv run pytest -v
 
 test-file:
 	@test -n "$(FILE)" || (printf "Usage: make test-file FILE=tests/test_prediction_model.py\n"; exit 1)
-	uv run pytest $(FILE)
+	@printf "[test] Running pytest file: $(FILE)\n"
+	@uv run pytest $(FILE)
 
 smoke:
-	uv run python src/classification/model.py
-	uv run python src/prediction/model.py
+	@printf "[smoke] Running classification model self-check\n"
+	@uv run python src/classification/model.py
+	@printf "\n[smoke] Running RUL model self-check\n"
+	@uv run python src/prediction/model.py
 
 check: test smoke
 
 demo:
-	uv run --with-requirements requirements.txt streamlit run app.py --server.port=$(PORT) --server.address=$(HOST)
+	@printf "[demo] Starting Streamlit on $(HOST):$(PORT)\n"
+	@uv run --with-requirements requirements.txt streamlit run app.py --server.port=$(PORT) --server.address=$(HOST)
 
 mlflow:
-	./run_mlflow.sh
+	@printf "[mlflow] Starting local MLflow UI\n"
+	@./run_mlflow.sh
 
 docker-build:
-	docker build -t $(IMAGE) .
+	@printf "[docker] Building image $(IMAGE)\n"
+	@docker build -t $(IMAGE) .
 
 docker-run:
-	docker run --rm -p $(PORT):8501 $(IMAGE)
+	@printf "[docker] Running image $(IMAGE) on port $(PORT)\n"
+	@docker run --rm -p $(PORT):8501 $(IMAGE)
