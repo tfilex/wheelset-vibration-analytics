@@ -81,12 +81,18 @@
 - `src/visualization/plots.py` - построение интерактивных графиков Plotly.
 
 В `src/prediction/demo_inference.py` функции загрузки моделей обернуты в `@st.cache_resource`, поэтому PyTorch-веса загружаются один раз на процесс Streamlit.
-В интерфейсе есть `selectbox` для выбора checkpoint классификации и checkpoint прогноза RUL.
+В интерфейсе есть режимы каталога моделей:
+
+- **Полупрод**: показывает только активные отобранные checkpoint из `models/demo_best/classification/cwru_classifier.pth` и `models/demo_best/rul/xjtu_rul.pth`;
+- **Экспериментальный**: показывает все совместимые checkpoint из демо-папок и исследовательских каталогов.
+
+В каждом режиме есть `selectbox` для выбора checkpoint классификации и checkpoint прогноза RUL.
+В Docker-образе по умолчанию включен заблокированный режим **Полупрод**. Для смены режима используются переменные окружения `MODEL_CATALOG_MODE=demo|experimental` и `MODEL_CATALOG_LOCKED=0|1`.
 
 Используемые модели в веб-демо:
 
 - классификация CWRU: `models/demo_best/classification/cwru_classifier.pth`, если файл есть;
-- прогноз RUL XJTU-SY: `models/demo_best/rul/xjtu_rul.pth` и совместимые checkpoint из `models/demo_best/rul/`, `models/pred_0/`, `models/preds_2_unfrozen/`, `models/preds_3/`, `models/preds_3_frozen/`, `models/preds_3_rnn/`;
+- прогноз RUL XJTU-SY: `models/demo_best/rul/xjtu_rul.pth`; в экспериментальном режиме дополнительно доступны совместимые checkpoint из `models/demo_best/rul/`, `models/pred_0/`, `models/preds_2_unfrozen/`, `models/preds_3/`, `models/preds_3_frozen/`, `models/preds_3_rnn/`;
 - fallback для классификации: `models/cnn/best_resnet18.pth`;
 - fallback для RUL: `models/pred_0/best_rul_lstm.pth`.
 
@@ -105,14 +111,29 @@ export XJTU_RUL_CHECKPOINT=/path/to/xjtu_rul.pth
 ## Быстрый запуск демо через Docker
 
 ```bash
-docker build -t bearing-diagnostics-demo .
-docker run --rm -p 8501:8501 bearing-diagnostics-demo
+make docker-build
+make docker-run-demo
 ```
 
 После запуска открыть:
 
 ```text
 http://localhost:8501
+```
+
+Экспериментальный Docker-запуск со всеми совместимыми checkpoint:
+
+```bash
+make docker-run-experimental
+```
+
+То же самое напрямую через Docker:
+
+```bash
+docker run --rm -p 8501:8501 \
+  -e MODEL_CATALOG_MODE=experimental \
+  -e MODEL_CATALOG_LOCKED=1 \
+  bearing-diagnostics-demo
 ```
 
 ## Запуск демо без Docker

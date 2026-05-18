@@ -1,8 +1,10 @@
 PORT ?= 8501
 HOST ?= 0.0.0.0
 IMAGE ?= bearing-diagnostics-demo
+MODEL_MODE ?= demo
+MODEL_MODE_LOCKED ?= 1
 
-.PHONY: help install test test-verbose test-file smoke check demo mlflow docker-build docker-run
+.PHONY: help install test test-verbose test-file smoke check demo mlflow docker-build docker-run docker-run-demo docker-run-experimental
 
 help:
 	@printf "Available targets:\n"
@@ -15,7 +17,9 @@ help:
 	@printf "  make demo [PORT=8501]           Run Streamlit demo\n"
 	@printf "  make mlflow                     Run local MLflow UI\n"
 	@printf "  make docker-build               Build Streamlit demo Docker image\n"
-	@printf "  make docker-run [PORT=8501]     Run Streamlit demo Docker container\n"
+	@printf "  make docker-run [MODEL_MODE=demo|experimental] [PORT=8501]\n"
+	@printf "  make docker-run-demo [PORT=8501]           Run locked semi-production demo\n"
+	@printf "  make docker-run-experimental [PORT=8501]   Run locked experimental demo\n"
 
 install:
 	@printf "[install] Syncing uv environment with dev dependencies\n"
@@ -55,5 +59,14 @@ docker-build:
 	@docker build -t $(IMAGE) .
 
 docker-run:
-	@printf "[docker] Running image $(IMAGE) on port $(PORT)\n"
-	@docker run --rm -p $(PORT):8501 $(IMAGE)
+	@printf "[docker] Running image $(IMAGE) on port $(PORT) with MODEL_CATALOG_MODE=$(MODEL_MODE)\n"
+	@docker run --rm -p $(PORT):8501 \
+		-e MODEL_CATALOG_MODE=$(MODEL_MODE) \
+		-e MODEL_CATALOG_LOCKED=$(MODEL_MODE_LOCKED) \
+		$(IMAGE)
+
+docker-run-demo:
+	@$(MAKE) docker-run MODEL_MODE=demo MODEL_MODE_LOCKED=1 PORT=$(PORT)
+
+docker-run-experimental:
+	@$(MAKE) docker-run MODEL_MODE=experimental MODEL_MODE_LOCKED=1 PORT=$(PORT)

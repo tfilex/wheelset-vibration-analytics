@@ -7,6 +7,24 @@
 - `classification/cwru_classifier.pth` — классификатор дефектов CWRU.
 - `rul/xjtu_rul.pth` — модель прогноза RUL XJTU-SY.
 
+В режиме `Полупрод` веб-демо показывает только эти активные файлы.
+Дополнительные checkpoint в `classification/` и `rul/` видны в режиме
+`Экспериментальный`.
+
+В Docker-образе режим задается переменными окружения:
+
+```bash
+MODEL_CATALOG_MODE=demo
+MODEL_CATALOG_LOCKED=1
+```
+
+Для просмотра всех экспериментальных checkpoint:
+
+```bash
+MODEL_CATALOG_MODE=experimental
+MODEL_CATALOG_LOCKED=1
+```
+
 Если файлы отсутствуют, демо автоматически использует fallback-модели:
 
 - `models/cnn/best_resnet18.pth`;

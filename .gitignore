@@ -20,6 +20,9 @@ reports/figures/
 *.jpeg
 *.pdf
 *.svg
+models/demo_best/**/*.pth
+!models/demo_best/classification/cwru_classifier.pth
+!models/demo_best/rul/xjtu_rul.pth
 
 # IDEs and Editors
 .vscode/
@@ -33,6 +36,7 @@ reports/figures/
 ._*
 .Spotlight-V100
 .Trashes
+*:Zone.Identifier
 
 # Other potential temp files
 tmp/

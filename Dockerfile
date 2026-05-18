@@ -1,6 +1,8 @@
 FROM python:3.10-slim
 
 WORKDIR /app
+ENV MODEL_CATALOG_MODE=demo
+ENV MODEL_CATALOG_LOCKED=1
 
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt

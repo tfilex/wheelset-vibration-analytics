@@ -2,7 +2,7 @@ from dataclasses import dataclass
 import os
 from pathlib import Path
 import re
-from typing import Any, TypedDict
+from typing import Any, Literal, TypedDict
 
 import numpy as np
 import pandas as pd
@@ -131,6 +131,9 @@ class ClassificationResult(TypedDict):
 class ModelOption(TypedDict):
     path: str
     label: str
+
+
+ModelCatalogMode = Literal["demo", "experimental"]
 
 
 class BiLSTMHead(nn.Module):
@@ -431,6 +434,17 @@ def _checkpoint_candidates(*paths: Path) -> list[Path]:
     return candidates
 
 
+def _active_checkpoint_candidates(
+    env_name: str,
+    preferred: Path,
+    fallback: Path,
+    legacy: Path | None = None,
+) -> list[Path]:
+    return _checkpoint_candidates(
+        _resolve_checkpoint(env_name, preferred, fallback, legacy)
+    )
+
+
 def _load_checkpoint_metadata(path: Path) -> dict[str, Any] | None:
     try:
         checkpoint = torch.load(path, map_location="cpu")
@@ -515,15 +529,25 @@ def _rul_params_from_checkpoint(checkpoint: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def discover_classification_models() -> list[ModelOption]:
+def discover_classification_models(
+    mode: ModelCatalogMode = "demo",
+) -> list[ModelOption]:
     options: list[ModelOption] = []
-    candidates = _checkpoint_candidates(
-        DEFAULT_CWRU_CHECKPOINT,
-        LEGACY_CWRU_CHECKPOINT,
-        FALLBACK_CWRU_CHECKPOINT,
-        DEMO_CLASSIFICATION_MODELS_DIR,
-        PROJECT_ROOT / "models/cnn",
-    )
+    if mode == "demo":
+        candidates = _active_checkpoint_candidates(
+            "CWRU_CLASSIFIER_CHECKPOINT",
+            DEFAULT_CWRU_CHECKPOINT,
+            FALLBACK_CWRU_CHECKPOINT,
+            LEGACY_CWRU_CHECKPOINT,
+        )
+    else:
+        candidates = _checkpoint_candidates(
+            DEFAULT_CWRU_CHECKPOINT,
+            LEGACY_CWRU_CHECKPOINT,
+            FALLBACK_CWRU_CHECKPOINT,
+            DEMO_CLASSIFICATION_MODELS_DIR,
+            PROJECT_ROOT / "models/cnn",
+        )
 
     for path in candidates:
         checkpoint = _load_checkpoint_metadata(path)
@@ -541,15 +565,23 @@ def discover_classification_models() -> list[ModelOption]:
     return options
 
 
-def discover_rul_models() -> list[ModelOption]:
+def discover_rul_models(mode: ModelCatalogMode = "demo") -> list[ModelOption]:
     ranked_options: list[tuple[float, ModelOption]] = []
-    candidates = _checkpoint_candidates(
-        DEFAULT_RUL_CHECKPOINT,
-        LEGACY_RUL_CHECKPOINT,
-        FALLBACK_RUL_CHECKPOINT,
-        DEMO_RUL_MODELS_DIR,
-        *DEMO_RUL_MODEL_DIRS,
-    )
+    if mode == "demo":
+        candidates = _active_checkpoint_candidates(
+            "XJTU_RUL_CHECKPOINT",
+            DEFAULT_RUL_CHECKPOINT,
+            FALLBACK_RUL_CHECKPOINT,
+            LEGACY_RUL_CHECKPOINT,
+        )
+    else:
+        candidates = _checkpoint_candidates(
+            DEFAULT_RUL_CHECKPOINT,
+            LEGACY_RUL_CHECKPOINT,
+            FALLBACK_RUL_CHECKPOINT,
+            DEMO_RUL_MODELS_DIR,
+            *DEMO_RUL_MODEL_DIRS,
+        )
 
     for path in candidates:
         checkpoint = _load_checkpoint_metadata(path)

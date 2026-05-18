@@ -1,3 +1,4 @@
+import os
 import time
 
 import pandas as pd
@@ -10,6 +11,7 @@ from src.demo.mock_data import (
     build_checks_history,
 )
 from src.prediction.demo_inference import (
+    ModelCatalogMode,
     classify_signal,
     discover_classification_models,
     discover_rul_models,
@@ -28,11 +30,29 @@ from src.visualization.plots import (
 
 st.set_page_config(layout="wide", page_title="Система диагностики")
 
+MODEL_MODE_LABELS: dict[ModelCatalogMode, str] = {
+    "demo": "Полупрод",
+    "experimental": "Экспериментальный",
+}
+MODEL_MODE_VALUES: tuple[ModelCatalogMode, ...] = ("demo", "experimental")
 
-def render_cwru_tab() -> None:
+
+def get_env_model_mode() -> ModelCatalogMode:
+    raw_mode = os.getenv("MODEL_CATALOG_MODE", "demo").strip().lower()
+    if raw_mode in MODEL_MODE_VALUES:
+        return raw_mode
+    return "demo"
+
+
+def is_model_mode_locked() -> bool:
+    raw_value = os.getenv("MODEL_CATALOG_LOCKED", "").strip().lower()
+    return raw_value in {"1", "true", "yes", "on"}
+
+
+def render_cwru_tab(model_mode: ModelCatalogMode) -> None:
     st.header("Классификация дефектов (CWRU)")
 
-    model_options = discover_classification_models()
+    model_options = discover_classification_models(model_mode)
     if not model_options:
         st.error("Не найдены совместимые checkpoint для классификации CWRU.")
         return
@@ -101,10 +121,10 @@ def render_cwru_tab() -> None:
             )
 
 
-def render_rul_tab() -> None:
+def render_rul_tab(model_mode: ModelCatalogMode) -> None:
     st.header("Прогноз ресурса RUL (XJTU-SY)")
 
-    model_options = discover_rul_models()
+    model_options = discover_rul_models(model_mode)
     if not model_options:
         st.error("Не найдены совместимые checkpoint для прогноза RUL.")
         return
@@ -193,6 +213,17 @@ def render_dashboard_tab() -> None:
 
 def main() -> None:
     st.sidebar.title("Навигация")
+    default_model_mode = get_env_model_mode()
+    if is_model_mode_locked():
+        model_mode = default_model_mode
+        st.sidebar.caption(f"Режим моделей: {MODEL_MODE_LABELS[model_mode]}")
+    else:
+        model_mode = st.sidebar.radio(
+            "Режим моделей",
+            options=list(MODEL_MODE_VALUES),
+            index=MODEL_MODE_VALUES.index(default_model_mode),
+            format_func=lambda mode: MODEL_MODE_LABELS[mode],
+        )
     page = st.sidebar.radio(
         "Раздел",
         (
@@ -203,9 +234,9 @@ def main() -> None:
     )
 
     if page == "Классификация дефектов (CWRU)":
-        render_cwru_tab()
+        render_cwru_tab(model_mode)
     elif page == "Прогноз ресурса RUL (XJTU-SY)":
-        render_rul_tab()
+        render_rul_tab(model_mode)
     else:
         render_dashboard_tab()
 
