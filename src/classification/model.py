@@ -215,12 +215,12 @@ def get_model(
 if __name__ == "__main__":
     # Тест всех архитектур на dummy-входе (STFT-спектрограмма 129×9)
     dummy = torch.randn(2, 1, 129, 9)
-    print(f"Тестовый вход: {dummy.shape}\n")
+    print(f"Test input: {dummy.shape}\n")
 
     for name in SUPPORTED_MODELS:
         model = get_model(name, num_classes=10, in_channels=1)
         out = model(dummy)
         n_params = sum(p.numel() for p in model.parameters())
-        print(f"  {name:24s} → output {out.shape}, params: {n_params:,}")
+        print(f"  [OK] {name:24s} -> output {out.shape}, params: {n_params:,}")
 
-    print("\nВсе архитектуры прошли forward pass успешно.")
+    print("\nAll architectures passed forward pass.")

@@ -362,8 +362,8 @@ class MambaTemporalStub(nn.Module):
         else:
             import warnings
             warnings.warn(
-                "[Mamba] Библиотека mamba-ssm не найдена. "
-                "Используется GRU-fallback. Установите: pip install mamba-ssm",
+                "[Mamba] mamba-ssm is not installed. "
+                "Using GRU fallback. Install: pip install mamba-ssm",
                 UserWarning,
                 stacklevel=2,
             )
@@ -672,12 +672,12 @@ if __name__ == "__main__":
     print("  Self-Verification: UniversalHybridRULNet")
     print("=" * 60)
 
-    # Фиктивный CNN-энкодер (resnet18)
+    # Dummy CNN encoder (resnet18)
     encoder, enc_dim = create_cnn_encoder(
         "resnet18", in_channels=3, freeze=True)
     print(f"[INFO] Encoder: resnet18, feature_dim={enc_dim}")
 
-    # Случайные входы
+    # Random inputs
     batch_size, seq_len = 16, 10
     images = torch.randn(batch_size, seq_len, 3, 224, 224)
     speed = torch.randn(batch_size, seq_len, 1)
@@ -702,22 +702,30 @@ if __name__ == "__main__":
 
         expected = (batch_size, 1)
         assert output.shape == expected, (
-            f"[FAIL] {m_type}: ожидалось {expected}, получено {output.shape}"
+            f"[FAIL] {m_type}: expected {expected}, got {output.shape}"
         )
         n_params = sum(p.numel()
                        for p in model.parameters() if p.requires_grad)
-        print(f"  ✅ {m_type:12s} → output shape: {output.shape}  "
+        print(f"  [OK] {m_type:12s} -> output shape: {output.shape}  "
               f"(trainable params: {n_params:,})")
 
-    # Mamba (может быть заглушкой)
+    # Mamba may use a GRU fallback if mamba-ssm is unavailable.
     try:
-        model_mamba = UniversalHybridRULNet(
-            encoder=encoder,
-            encoder_dim=enc_dim,
-            temporal_type="mamba",
-            hidden_size=64,
-            dropout=0.2,
-        )
+        import warnings
+
+        with warnings.catch_warnings():
+            warnings.filterwarnings(
+                "ignore",
+                message=r"\[Mamba\] mamba-ssm is not installed.*",
+                category=UserWarning,
+            )
+            model_mamba = UniversalHybridRULNet(
+                encoder=encoder,
+                encoder_dim=enc_dim,
+                temporal_type="mamba",
+                hidden_size=64,
+                dropout=0.2,
+            )
         model_mamba.eval()
         with torch.no_grad():
             output_m = model_mamba(images, speed)
@@ -725,11 +733,11 @@ if __name__ == "__main__":
         label = "mamba (real)" if _MAMBA_AVAILABLE else "mamba (GRU-fallback)"
         n_params = sum(p.numel()
                        for p in model_mamba.parameters() if p.requires_grad)
-        print(f"  ✅ {label:12s} → output shape: {output_m.shape}  "
+        print(f"  [OK] {label:12s} -> output shape: {output_m.shape}  "
               f"(trainable params: {n_params:,})")
     except Exception as e:
-        print(f"  ⚠️  mamba: {e}")
+        print(f"  [WARN] mamba: {e}")
 
     print("\n" + "=" * 60)
-    print("  Все архитектуры прошли проверку размерностей!")
+    print("  All architectures passed shape verification.")
     print("=" * 60)
