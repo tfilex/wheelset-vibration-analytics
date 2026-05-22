@@ -43,4 +43,6 @@ tmp/
 temp/
 *.log
 
+# folders with data for training and debuging that is unnecessary for git
 /data
+/reports

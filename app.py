@@ -31,8 +31,8 @@ from src.visualization.plots import (
 st.set_page_config(layout="wide", page_title="Система диагностики")
 
 MODEL_MODE_LABELS: dict[ModelCatalogMode, str] = {
-    "demo": "Полупрод",
-    "experimental": "Экспериментальный",
+    "demo": "Prod",
+    "experimental": "Test",
 }
 MODEL_MODE_VALUES: tuple[ModelCatalogMode, ...] = ("demo", "experimental")
 
