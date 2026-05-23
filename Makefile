@@ -4,7 +4,7 @@ IMAGE ?= bearing-diagnostics-demo
 MODEL_MODE ?= demo
 MODEL_MODE_LOCKED ?= 1
 
-.PHONY: help install test test-verbose test-file smoke check demo mlflow docker-build docker-run docker-run-demo docker-run-experimental
+.PHONY: help install test test-verbose test-file smoke check demo mlflow vkr-materials docker-build docker-run docker-run-demo docker-run-experimental
 
 help:
 	@printf "Available targets:\n"
@@ -16,6 +16,7 @@ help:
 	@printf "  make check                      Run tests and smoke checks\n"
 	@printf "  make demo [PORT=8501]           Run Streamlit demo\n"
 	@printf "  make mlflow                     Run local MLflow UI\n"
+	@printf "  make vkr-materials              Generate VKR tables and figures from saved CSV metrics\n"
 	@printf "  make docker-build               Build Streamlit demo Docker image\n"
 	@printf "  make docker-run [MODEL_MODE=demo|experimental] [PORT=8501]\n"
 	@printf "  make docker-run-demo [PORT=8501]           Run locked semi-production demo\n"
@@ -53,6 +54,10 @@ demo:
 mlflow:
 	@printf "[mlflow] Starting local MLflow UI\n"
 	@./run_mlflow.sh
+
+vkr-materials:
+	@printf "[vkr] Generating VKR tables and figures from saved CSV metrics\n"
+	@uv run python scratch_scripts/make_vkr_materials.py
 
 docker-build:
 	@printf "[docker] Building image $(IMAGE)\n"

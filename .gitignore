@@ -10,6 +10,7 @@ env/
 ENV/
 
 # MLflow
+mlartifacts/
 mlruns/
 *.db
 
@@ -43,4 +44,8 @@ tmp/
 temp/
 *.log
 
+# Training/debug artifacts that are unnecessary for clean git releases
 /data
+/reports
+/catboost_info/
+/models/preds_*/

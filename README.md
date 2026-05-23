@@ -45,6 +45,7 @@
 │   └── cache/                     # Кэш CWT-скалограмм и CNN-фичей
 ├── models/
 │   ├── cnn/                       # ResNet/CNN чекпоинты и ONNX-экспорт
+│   ├── demo_best/                 # Отобранные checkpoint для Streamlit-демо
 │   ├── pred_0/                    # Базовые RUL-модели
 │   ├── preds_2_frozen/            # RUL v2 с feature-cache
 │   ├── preds_2_unfrozen/          # RUL v2 с дообучаемым CNN
@@ -53,14 +54,23 @@
 │   ├── preds_3_rnn/               # RNN/attention эксперименты
 │   ├── preds_4_tcn/               # TCN эксперименты, не подключены к демо
 │   └── preds_5_odd/               # PatchTST/Conformer эксперименты, не подключены к демо
-├── reports/                       # Графики, логи и отчетные артефакты
+├── reports/
+│   ├── figures/                   # Графики обучения, residuals, RUL prediction
+│   ├── logs/                      # Логи длительных запусков
+│   └── tables_for_vkr/            # Таблицы CSV/XLSX/Markdown для ВКР
+├── console_diagnostics/          # Консольный запуск RUL/HI/status без Streamlit
+├── experiments/                   # Отдельные оценочные эксперименты
 ├── src/
 │   ├── classification/            # Классификация дефектов CWRU
 │   ├── prediction/                # Прогнозирование RUL XJTU-SY
 │   ├── demo/                      # Константы и вспомогательные данные демо
+│   ├── evaluation/                # ROC-AUC и другие оценочные процедуры
+│   ├── features/                  # Статпризнаки и куртограмма
+│   ├── models/                    # Интерпретируемые baseline-модели
+│   ├── utils/                     # Health Index, RUL в км и пороги
 │   └── visualization/             # Plotly-графики для демо
 ├── tests/                         # Быстрые smoke-тесты без обучения моделей
-├── scripts/                       # Сценарии запуска длительных экспериментов
+├── scripts/                       # Сценарии запуска длительных RUL-экспериментов
 ├── scratch/                       # Черновые материалы
 └── scratch_scripts/               # Черновые скрипты
 ```
@@ -70,7 +80,7 @@
 Демо состоит из трех экранов:
 
 - **Классификация дефектов (CWRU)**: выбор checkpoint, выбор тестового сигнала, реальный инференс ResNet-18, график вибросигнала и карта важности модели.
-- **Прогноз ресурса RUL (XJTU-SY)**: выбор checkpoint, реальный инференс CNN+temporal по CSV-окнам XJTU-SY и динамическая отрисовка True RUL / Pred RUL.
+- **Прогноз ресурса RUL (XJTU-SY)**: выбор checkpoint, реальный инференс CNN+temporal по CSV-окнам XJTU-SY, динамическая отрисовка True RUL / Pred RUL, Health Index, статус и остаточный ресурс в километрах.
 - **Бортовой модуль (Дашборд)**: имитация интерфейса машиниста с метриками, gauge chart и таблицей последних проверок.
 
 Архитектура демо:
@@ -78,16 +88,18 @@
 - `app.py` - UI-слой и навигация;
 - `src/demo/mock_data.py` - константы демо и история проверок;
 - `src/prediction/demo_inference.py` - загрузка реальных checkpoint и функции инференса;
+- `src/utils/health_index.py` - Health Index, статус и перевод RUL в километры;
+- `src/utils/thresholds.py` - скоростные пороги виброускорения;
+- `src/features/` - статистические признаки и куртограмма;
 - `src/visualization/plots.py` - построение интерактивных графиков Plotly.
 
 В `src/prediction/demo_inference.py` функции загрузки моделей обернуты в `@st.cache_resource`, поэтому PyTorch-веса загружаются один раз на процесс Streamlit.
-В интерфейсе есть режимы каталога моделей:
+В интерфейсе есть два режима каталога моделей:
 
-- **Полупрод**: показывает только активные отобранные checkpoint из `models/demo_best/classification/cwru_classifier.pth` и `models/demo_best/rul/xjtu_rul.pth`;
-- **Экспериментальный**: показывает все совместимые checkpoint из демо-папок и исследовательских каталогов.
+- **Prod** (`MODEL_CATALOG_MODE=demo`): показывает активные отобранные checkpoint из `models/demo_best/classification/cwru_classifier.pth` и `models/demo_best/rul/xjtu_rul.pth`;
+- **Test** (`MODEL_CATALOG_MODE=experimental`): показывает все совместимые checkpoint из демо-папок и исследовательских каталогов.
 
-В каждом режиме есть `selectbox` для выбора checkpoint классификации и checkpoint прогноза RUL.
-В Docker-образе по умолчанию включен заблокированный режим **Полупрод**. Для смены режима используются переменные окружения `MODEL_CATALOG_MODE=demo|experimental` и `MODEL_CATALOG_LOCKED=0|1`.
+В каждом режиме есть `selectbox` для выбора checkpoint классификации и checkpoint прогноза RUL. Если `MODEL_CATALOG_LOCKED=1`, переключатель режима скрыт, а демо использует значение из `MODEL_CATALOG_MODE`. В Docker-образе по умолчанию включен заблокированный режим `demo`.
 
 Используемые модели в веб-демо:
 
@@ -96,9 +108,9 @@
 - fallback для классификации: `models/cnn/best_resnet18.pth`;
 - fallback для RUL: `models/pred_0/best_rul_lstm.pth`.
 
-RUL-модели сортируются по `test_mse`, поэтому лучший совместимый checkpoint появляется первым в списке. Поддерживаются базовые `lstm/gru/tcn/transformer`, а также новые головы `bilstm`, `bigru`, `lstm_attn`, `gru_attn`, `transformer_improved`.
+RUL-модели сортируются по `test_mse`, поэтому лучший совместимый checkpoint появляется первым в списке. Поддерживаются базовые `lstm/gru/tcn/transformer`, а также головы `bilstm`, `bigru`, `lstm_attn`, `gru_attn`, `transformer_improved`.
 
-`models/preds_4_tcn/` и `models/preds_5_odd/` оставлены как экспериментальные артефакты, но не включены в автоматический выбор веб-демо: их лучшие checkpoint уступают текущему `transformer_improved` по `test_mse`, `test_mae` и `test_r2`, а подключение потребовало бы отдельных inference-голов без выигрыша в качестве.
+`models/preds_4_tcn/` и `models/preds_5_odd/` оставлены как исследовательские артефакты и не включены в автоматический выбор веб-демо. Для этих семейств используются отдельные обучающие сценарии и отчетные материалы; подключать конкретный вариант к демо стоит только после проверки качества и совместимости inference-кода на выбранном checkpoint.
 
 Можно положить лучшие checkpoint в `models/demo_best/classification/` и `models/demo_best/rul/` без изменения кода. Также поддерживаются переменные окружения:
 
@@ -106,6 +118,22 @@ RUL-модели сортируются по `test_mse`, поэтому лучш
 export DEMO_MODELS_DIR=/path/to/models
 export CWRU_CLASSIFIER_CHECKPOINT=/path/to/cwru_classifier.pth
 export XJTU_RUL_CHECKPOINT=/path/to/xjtu_rul.pth
+```
+
+## Консольная диагностика
+
+Для запуска прогноза ресурса без веб-интерфейса добавлен отдельный CLI-модуль:
+
+```bash
+uv run python console_diagnostics/run.py --bearing Bearing1_3
+```
+
+Он использует тот же checkpoint RUL-модели, рассчитывает нормированный RUL, Health Index, остаточный ресурс в километрах и диагностический статус. Результаты сохраняются в CSV и PNG, а в обычном терминале статус подсвечивается цветом.
+
+Совместимый старый вход также оставлен:
+
+```bash
+uv run python experiments/run_offline_rul_diagnostics.py --bearing Bearing1_3
 ```
 
 ## Быстрый запуск демо через Docker
@@ -156,6 +184,11 @@ torch
 torchvision
 scipy
 PyWavelets
+scikit-learn
+matplotlib
+hmmlearn
+pytest
+pytest-cov
 ```
 
 ## Полное ML-окружение
@@ -192,7 +225,8 @@ uv sync
 - формы выходов temporal/RUL-моделей;
 - работу `RULDataset` на маленьких временных CSV;
 - структуру демонстрационных данных;
-- создание Plotly-графиков для Streamlit-демо.
+- создание Plotly-графиков для Streamlit-демо;
+- сборку таблиц и рисунков для ВКР из сохраненных CSV-метрик.
 
 Для коротких команд есть `Makefile`:
 
@@ -203,11 +237,18 @@ make help
 Основные цели:
 
 ```bash
-make install      # uv sync --dev
-make test         # uv run pytest
-make smoke        # self-check скрипты моделей
-make check        # test + smoke
-make demo         # запуск Streamlit-демо
+make install                 # uv sync --dev
+make test                    # uv run pytest
+make test-verbose            # uv run pytest -v
+make test-file FILE=...      # запуск одного pytest-файла
+make smoke                   # self-check скрипты моделей
+make check                   # test + smoke
+make demo                    # запуск Streamlit-демо
+make mlflow                  # запуск локального MLflow UI
+make vkr-materials           # сборка таблиц и рисунков для ВКР
+make docker-build            # сборка Docker-образа демо
+make docker-run-demo         # locked demo-каталог моделей
+make docker-run-experimental # locked experimental-каталог моделей
 ```
 
 Установка полного окружения вместе с dev-зависимостями:
@@ -248,6 +289,41 @@ uv run python src/classification/model.py
 uv run python src/prediction/model.py
 ```
 
+## Материалы для ВКР
+
+Для воспроизводимой сборки отчетных таблиц и рисунков используется скрипт `scratch_scripts/make_vkr_materials.py`. Он читает уже сохраненные `summary_metrics*.csv` из `reports/figures/summary/`, не обучает модели и не изменяет checkpoint.
+
+Быстрый запуск:
+
+```bash
+make vkr-materials
+```
+
+То же самое напрямую:
+
+```bash
+uv run python scratch_scripts/make_vkr_materials.py --profile balanced
+```
+
+Основные выходные файлы:
+
+- `reports/tables_for_vkr/vkr_model_metrics_all.csv` - единая таблица метрик всех найденных RUL-запусков;
+- `reports/tables_for_vkr/vkr_best_models_by_family_mode.csv` - лучшие модели по семейству и режиму обучения;
+- `reports/tables_for_vkr/vkr_best_models_by_family_mode.md` - Markdown-версия таблицы для вставки в текст;
+- `reports/tables_for_vkr/vkr_model_metrics.xlsx` - XLSX-книга с листами `all_metrics` и `best_by_family_mode`;
+- `reports/figures/summary/figure_2_18_vkr_best_models_by_family_mode.png` - сравнение лучших моделей по `test_mse`;
+- `reports/figures/summary/figure_2_19_vkr_accuracy_speed_tradeoff.png` - компромисс точности и скорости инференса.
+
+Полезные параметры:
+
+```bash
+uv run python scratch_scripts/make_vkr_materials.py --profile fast
+uv run python scratch_scripts/make_vkr_materials.py --skip-xlsx
+uv run python scratch_scripts/make_vkr_materials.py --summary-dir reports/figures/summary --tables-dir reports/tables_for_vkr
+```
+
+Дополнительные черновые генераторы рисунков и таблиц лежат в `scratch_scripts/`; они полезны для подготовки конкретных иллюстраций, но основная воспроизводимая точка входа для агрегированных материалов - `make vkr-materials`.
+
 ## Данные
 
 Ожидаемая структура исходных данных:
@@ -264,10 +340,7 @@ data/raw/
     └── 40Hz10kN/
 ```
 
-В релизной ветке `main` для Docker-демо хранится компактная выборка:
-несколько CWRU `.mat` и равномерный subset CSV для четырёх XJTU-SY
-подшипников из интерфейса. Полный исследовательский датасет не входит в
-чистый релиз и должен храниться отдельно.
+В ветке `main` хранится компактная выборка для Docker-демо: несколько CWRU `.mat` и равномерный subset CSV для XJTU-SY подшипников, доступных в интерфейсе. Полный исследовательский датасет не входит в clean-релиз и должен храниться отдельно.
 
 Кэшируемые производные данные:
 
@@ -304,22 +377,37 @@ uv run python src/prediction/train.py
 uv run python src/prediction/train_three_models.py
 ```
 
-Гибридный RUL pipeline v2:
-
-```bash
-uv run python src/prediction/train_rul_hybrid_v2.py --profile balanced --n-trials 30
-```
-
-Гибридный RUL pipeline v3:
-
-```bash
-uv run python src/prediction/train_rul_hybrid_v3.py --profile balanced --n-trials 30 --epochs 40 --temporal-types lstm gru transformer --num-workers 0
-```
-
 RUL baseline на CatBoost:
 
 ```bash
 uv run python src/prediction/train_boosting.py
+```
+
+Гибридные CNN+temporal pipeline:
+
+```bash
+uv run python src/prediction/train_rul_hybrid_v2.py --profile balanced --n-trials 30
+uv run python src/prediction/train_rul_hybrid_v3.py --profile balanced --n-trials 30 --epochs 40 --temporal-types lstm gru transformer --num-workers 0
+uv run python src/prediction/train_rul_hybrid_v3_rnn.py --profile balanced --temporal-types lstm bilstm lstm_attn bigru gru_attn transformer_improved
+uv run python src/prediction/train_rul_hybrid_v4_tcn.py --profile balanced --temporal-types tcn tcn_ms tcna tcn_bi
+uv run python src/prediction/train_rul_hybrid_v5_odd.py --profile balanced --temporal-types patchtst conformer mamba
+```
+
+`v3_rnn`, `v4_tcn` и `v5_odd` поддерживают режимы `--final-fit-modes frozen finetune`: HPO идет по кэшированным CNN-признакам, затем можно сравнивать замороженный encoder и fine-tuning. Для быстрого sanity-check есть профиль `--profile fast`, для основных сравнений - `--profile balanced`. В `v5_odd` архитектура `mamba` пропускается автоматически, если пакет `mamba-ssm` не установлен.
+
+Готовые shell-сценарии для долгих запусков:
+
+```bash
+./scripts/run_v3_rnn_balanced_freeze_then_finetune.sh
+./scripts/run_v4_tcn_balanced_freeze_then_finetune.sh
+./scripts/run_v5_odd_balanced_freeze_then_finetune.sh
+./scripts/run_all_hybrids_overnight.sh
+```
+
+Их можно параметризовать переменными окружения:
+
+```bash
+WINDOW_SIZES="1024 2048" TEMPORAL_TYPES="tcn tcna" N_TRIALS=10 EPOCHS=15 ./scripts/run_v4_tcn_balanced_freeze_then_finetune.sh
 ```
 
 ## MLflow
@@ -344,17 +432,13 @@ http://localhost:5000
 
 ## Модели и артефакты
 
-Основные директории:
+Основные директории clean-релиза:
 
-- `models/cnn/` - классификационные CNN/ResNet-18 модели;
-- `models/pred_0/` - базовые RUL-модели;
-- `models/preds_2_frozen/` - RUL v2 с замороженным CNN и feature-cache;
-- `models/preds_2_unfrozen/` - RUL v2 с дообучаемым CNN;
-- `models/preds_3/` и `models/preds_3_frozen/` - Transformer/LSTM/GRU варианты;
-- `models/preds_3_rnn/` - RNN/attention варианты;
-- `models/preds_4_tcn/` - TCN варианты, экспериментально;
-- `models/preds_5_odd/` - PatchTST/Conformer варианты, экспериментально;
-- `reports/figures/` - графики обучения, residuals, RUL prediction и отчеты.
+- `models/demo_best/` - активные checkpoint для Streamlit-демо;
+- `models/cnn/` - компактный набор классификационных CNN/ResNet-18 checkpoint;
+- `models/pred_0/` - fallback RUL-модель для демо.
+
+Полные исследовательские checkpoint из `models/preds_*`, MLflow-артефакты и большие отчётные директории в `main` не включаются. Их стоит хранить в рабочих ветках, локальном хранилище или отдельном артефактном хранилище.
 
 ## Как заменить модели в демо
 
@@ -379,11 +463,10 @@ FROM python:3.10-slim
 
 - `requirements.txt`;
 - `app.py`;
-- `src/`.
-- `models/demo_best/`.
+- `src/`;
+- `models/demo_best/`;
 - fallback checkpoint из `models/cnn/` и `models/pred_0/`;
-- совместимые лучшие RUL checkpoint из `models/preds_2_unfrozen/`, `models/preds_3/`, `models/preds_3_frozen/`, `models/preds_3_rnn/`;
-- `data/raw/` для реального CWRU/XJTU-SY инференса.
+- компактную выборку `data/raw/` для реального CWRU/XJTU-SY инференса в демо.
 
 Запуск внутри контейнера:
 
@@ -395,6 +478,7 @@ streamlit run app.py --server.port=8501 --server.address=0.0.0.0
 
 - `requirements.txt` предназначен для запуска веб-демо с реальными checkpoint.
 - Для исследовательских запусков использовать `uv sync` и команды `uv run ...`.
-- Для release-проверки использовать `uv run pytest`; длительное обучение моделей запускать отдельно вручную.
+- Для release-проверки использовать `make check`; длительное обучение моделей запускать отдельно вручную.
+- Для обновления агрегированных таблиц и рисунков ВКР использовать `make vkr-materials` после появления новых `summary_metrics*.csv`.
 - Веб-демо использует реальные сохраненные модели, а дашборд остается демонстрационным сценарием интерфейса.
 - Подробная карта исследовательских скриптов находится в `project_struct.md`.

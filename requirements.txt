@@ -6,3 +6,8 @@ scipy
 PyWavelets
 torch
 torchvision
+scikit-learn
+matplotlib
+hmmlearn
+pytest
+pytest-cov

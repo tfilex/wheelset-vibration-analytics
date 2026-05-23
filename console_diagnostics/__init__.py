@@ -1,0 +1,1 @@
+"""Offline console diagnostics package."""

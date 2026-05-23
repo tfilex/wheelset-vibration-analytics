@@ -1,0 +1,4 @@
+model,rmse,mae,r2,notes
+HMM (K=4),0.23675525245914564,0.1978871758952185,0.33733262893729654,statistical features baseline
+ImprovedTransformer (из ВКР),,,0.105,reference value from saved VKR materials
+Ensemble ImprovedTransformer+Conformer+BiTCN (из ВКР),,,0.121,reference value from saved VKR materials
