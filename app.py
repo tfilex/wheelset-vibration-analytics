@@ -2,6 +2,7 @@ import os
 import time
 
 import pandas as pd
+import plotly.graph_objects as go
 import streamlit as st
 
 from src.demo.mock_data import (
@@ -26,6 +27,14 @@ from src.visualization.plots import (
     build_rul_figure,
     build_signal_figure,
 )
+from src.utils.health_index import (
+    compute_hi,
+    compute_slope,
+    format_rul_display,
+    get_status,
+    rul_to_km,
+)
+from src.utils.thresholds import speed_threshold
 
 
 st.set_page_config(layout="wide", page_title="Система диагностики")
@@ -194,6 +203,97 @@ def render_rul_tab(model_mode: ModelCatalogMode) -> None:
             time.sleep(0.05)
 
         st.success("Симуляция завершена.")
+        st.subheader("Health Index и диагностический статус")
+
+        hi_series = compute_hi(rul_history["pred_rul"].to_numpy(), window=10)
+        hi_now = float(hi_series[-1])
+        slope = compute_slope(hi_series, n=20)
+        rul_km, sigma_km = rul_to_km(hi_now, slope)
+        level, name, color = get_status(hi_now)
+        rul_display = format_rul_display(rul_km, sigma_km)
+
+        st.markdown(
+            f"<b>Текущий статус:</b> <span style='color:{color}'>{level}. {name}</span>",
+            unsafe_allow_html=True,
+        )
+
+        col1, col2, col3 = st.columns(3)
+        col1.metric(
+            "Health Index",
+            f"{hi_now:.3f}",
+            delta=f"{slope * 100:.2f}% / окно",
+            delta_color="inverse",
+        )
+        col2.metric("Остаточный ресурс", rul_display)
+        col3.metric("Уровень", f"{level}. {name}")
+
+        status_data = {
+            "Уровень": [
+                "1 - Норма",
+                "2 - Удовлетворительно",
+                "3 - Требует контроля",
+                "4 - Аварийное",
+            ],
+            "Условие HI": [
+                "HI > 0.85",
+                "0.60 < HI <= 0.85",
+                "0.35 < HI <= 0.60",
+                "HI <= 0.35",
+            ],
+            "Действие": [
+                "Плановое ТО",
+                "Повышенное наблюдение",
+                "Внеплановый осмотр",
+                "Остановка и замена",
+            ],
+        }
+        df_status = pd.DataFrame(status_data)
+
+        def highlight_current(row):
+            if row["Уровень"].startswith(str(level)):
+                return ["background-color: #fff3cd; font-weight: bold"] * len(row)
+            return [""] * len(row)
+
+        st.dataframe(
+            df_status.style.apply(highlight_current, axis=1),
+            width="stretch",
+            hide_index=True,
+        )
+
+        fig_hi = go.Figure()
+        fig_hi.add_trace(
+            go.Scatter(
+                x=rul_history["step"],
+                y=hi_series,
+                name="Health Index",
+                line={"color": "#1f77b4", "width": 2.5},
+            )
+        )
+        fig_hi.add_hline(y=0.85, line_dash="dash", line_color="orange")
+        fig_hi.add_hline(y=0.60, line_dash="dash", line_color="red")
+        fig_hi.add_hline(y=0.35, line_dash="dash", line_color="darkred")
+        fig_hi.update_layout(
+            title="Динамика Health Index",
+            xaxis_title="Шаг наблюдения",
+            yaxis_title="HI",
+            yaxis={"range": [-0.05, 1.05]},
+            height=420,
+            margin={"l": 20, "r": 20, "t": 55, "b": 20},
+        )
+        st.plotly_chart(fig_hi, width="stretch")
+
+        threshold_data = pd.DataFrame(
+            {
+                "Скорость": ["< 40 км/ч", "40-80 км/ч", "> 80 км/ч"],
+                "Порог RMS": [
+                    f"{speed_threshold(30):.1f} g",
+                    f"{speed_threshold(60):.1f} g",
+                    f"{speed_threshold(100):.1f} g",
+                ],
+            }
+        )
+        st.markdown("#### Скоростные пороги виброускорения")
+        st.dataframe(threshold_data, width="stretch", hide_index=True)
 
 
 def render_dashboard_tab() -> None:

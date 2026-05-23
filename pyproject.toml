@@ -24,6 +24,8 @@ dependencies = [
     "onnxscript>=0.7.0",
     "catboost>=1.2.10",
     "plotly>=6.7.0",
+    "streamlit>=1.30.0",
+    "hmmlearn>=0.3.0",
 ]
 
 [tool.uv]
@@ -37,4 +39,5 @@ testpaths = ["tests"]
 [dependency-groups]
 dev = [
     "pytest>=8.4.2",
+    "pytest-cov>=4.1.0",
 ]
