@@ -1,6 +1,6 @@
 [project]
 name = "wheelset-vibration-analytics"
-version = "0.1.0"
+version = "0.2.1"
 description = "Анализ вибросигналов подшипников для магистерской диссертации"
 authors = [
     { name = "Author" }
@@ -35,6 +35,9 @@ managed = true
 addopts = ["-s"]
 pythonpath = ["."]
 testpaths = ["tests"]
+markers = [
+    "slow: integration smoke tests that load local demo checkpoints and sample data",
+]
 
 [dependency-groups]
 dev = [
