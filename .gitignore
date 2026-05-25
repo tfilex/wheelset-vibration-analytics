@@ -20,9 +20,13 @@ reports/figures/
 *.jpeg
 *.pdf
 *.svg
+!docs/images/
+!docs/images/**
 models/demo_best/**/*.pth
 !models/demo_best/classification/cwru_classifier.pth
 !models/demo_best/rul/xjtu_rul.pth
+!models/demo_best/rul/best_rul_transformer_improved_ws1024_v3rnn_train_rul_hybrid_v3_rnn_profilebalanced_trials30_epochs10_featurecache_on.pth
+!models/demo_best/rul/best_rul_bilstm_ws1024_v3rnn_train_rul_hybrid_v3_rnn_profilebalanced_trials30_epochs30_featurecache_on.pth
 
 # IDEs and Editors
 .vscode/
@@ -46,3 +50,4 @@ temp/
 # folders with data for training and debuging that is unnecessary for git
 /data
 /reports
+/md
