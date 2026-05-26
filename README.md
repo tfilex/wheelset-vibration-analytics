@@ -76,7 +76,7 @@
 │   ├── prediction/                # Прогнозирование RUL XJTU-SY
 │   ├── demo/                      # Константы и вспомогательные данные демо
 │   └── visualization/             # Plotly-графики для демо
-├── tests/                         # Быстрые smoke-тесты без обучения моделей
+├── tests/                         # Pytest-тесты core logic, demo inference, CLI и материалов ВКР
 ├── scripts/                       # Сценарии запуска длительных RUL-экспериментов
 ├── scratch/                       # Черновые материалы
 └── scratch_scripts/               # Черновые скрипты
@@ -223,15 +223,27 @@ uv sync
 
 ## Проверки и тесты
 
-В проект добавлены быстрые smoke-тесты на `pytest`. Они не запускают обучение, Optuna, MLflow и не требуют тяжелых checkpoint, а проверяют базовую работоспособность ключевых частей кода:
+В проекте используется `pytest` и `pytest-cov`. Тесты не запускают обучение моделей, Optuna-подбор и MLflow pipeline; основная часть проверок работает на синтетических или малых временных данных. Отдельные интеграционные smoke-тесты помечены маркером `slow` и могут загружать demo checkpoint для короткого CWRU/XJTU-SY inference.
 
-- создание и forward-pass классификационной модели ResNet-18;
-- формы выходов temporal/RUL-моделей;
-- работу `RULDataset` на маленьких временных CSV;
-- структуру демонстрационных данных;
-- создание Plotly-графиков для Streamlit-демо;
-- интеграционный smoke-test каталога demo-моделей и короткого CWRU/XJTU-SY inference;
-- сборку таблиц и рисунков для ВКР из сохраненных CSV-метрик.
+Текущее локальное покрытие ключевого кода:
+
+```text
+uv run pytest --cov=src --cov=console_diagnostics --cov-report=term-missing -q
+80 passed, 3 warnings
+TOTAL coverage: 90%
+```
+
+Что проверяется тестами:
+
+- консольная диагностика: запуск CLI-логики, цветной вывод, сохранение CSV и PNG;
+- классификационные CNN-модели и `SpectrogramAdapter` для STFT-спектрограмм;
+- RUL-модели: LSTM, GRU, TCN, Transformer, Mamba fallback, CNN encoder и загрузка checkpoint;
+- `RULDataset` и `DemoRULDataset` на малых CSV-последовательностях;
+- demo inference helpers: выбор checkpoint, metadata, каталог моделей и короткий CWRU/XJTU-SY smoke inference;
+- HMM baseline: обучение, прогноз RUL, метрики и подбор числа скрытых состояний;
+- Health Index, пороги тревог, статистические признаки, kurtogram и построение графиков;
+- сборка таблиц и рисунков для ВКР из сохраненных CSV-метрик;
+- ROC-AUC utilities как вспомогательная offline-оценка классификатора, не как часть финального demo-сценария.
 
 Для коротких команд есть `Makefile`:
 
@@ -266,6 +278,18 @@ uv sync --dev
 
 ```bash
 uv run pytest
+```
+
+Запуск тестов без интеграционных `slow` smoke-проверок:
+
+```bash
+uv run pytest -m "not slow"
+```
+
+Запуск с расчетом покрытия:
+
+```bash
+uv run pytest --cov=src --cov=console_diagnostics --cov-report=term-missing -q
 ```
 
 Более подробный вывод:
@@ -498,6 +522,7 @@ streamlit run app.py --server.port=8501 --server.address=0.0.0.0
 - Карта важности в интерактивном demo - это gradient * input attribution из `_build_attribution()`, а не SHAP. SHAP остается исследовательским/offline материалом в scratch/report scripts.
 - График RUL строится одной выбранной моделью `models/demo_best/rul/best_rul_transformer_improved_ws1024_v3rnn_train_rul_hybrid_v3_rnn_profilebalanced_trials30_epochs10_featurecache_on.pth`. Ансамблевый доверительный интервал в UI не реализован.
 - Остаточный ресурс в километрах рассчитывается как демонстрационная постобработка Health Index и slope, а не как валидированная физическая модель пробега вагона.
+- ROC-AUC не используется в финальном demo/CLI-сценарии диагностики. `src/evaluation/roc_analysis.py` оставлен как исследовательская offline-утилита для дополнительной оценки классификатора.
 - Дашборд использует демонстрационную историю из `src/demo/mock_data.py`; persistent storage, пользователи, API и аудит решений не реализованы.
 
 ## Примечания

@@ -5,7 +5,8 @@
 ## Что изменилось
 
 - Закреплен новый demo checkpoint для RUL-контура: `ImprovedTransformer` из семейства `v3_rnn` в режиме `finetune_cnn`.
-- Добавлены интеграционные smoke-тесты demo inference в `tests/test_demo_inference.py`:
+- Расширено тестовое покрытие ключевого кода до 90%: добавлены focused tests для console diagnostics, HMM baseline, RUL-моделей, demo inference helpers и классификационных моделей. Дополнительно покрыты вспомогательные ROC utilities для исследовательской оценки классификатора.
+- Сохранены интеграционные smoke-тесты demo inference в `tests/test_demo_inference.py`:
   - проверка demo-каталога моделей;
   - проверка выбора pinned RUL checkpoint;
   - короткий CWRU inference;
@@ -20,11 +21,11 @@
 
 ```text
 uv run pytest -q
-30 passed, 2 warnings
+80 passed, 3 warnings
 
 uv run pytest --cov=src --cov=console_diagnostics --cov-report=term-missing -q
-30 passed, 2 warnings
-TOTAL coverage: 56%
+80 passed, 3 warnings
+TOTAL coverage: 90%
 ```
 
 ## Ограничения релиза
