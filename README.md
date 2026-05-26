@@ -6,6 +6,19 @@
 - прогнозирование остаточного ресурса RUL по данным XJTU-SY;
 - Streamlit-демо для показа результатов и сценариев диагностики.
 
+
+## Иллюстрации
+
+Архитектура и демонстрационный сценарий вынесены в отдельные файлы в `docs/images/`, без base64-вставок в README.
+
+![Архитектура программного прототипа](docs/images/architecture_overview.svg)
+
+![Топ-5 RUL-моделей](docs/images/top5_rul_models.svg)
+
+![Страницы Streamlit-демо](docs/images/streamlit_demo_overview.svg)
+
+![Пример консольной RUL-диагностики](docs/images/offline_rul_hi_bearing1_3.png)
+
 ## Основные задачи
 
 1. **Классификация дефектов CWRU**
@@ -58,29 +71,38 @@
 │   ├── figures/                   # Графики обучения, residuals, RUL prediction
 │   ├── logs/                      # Логи длительных запусков
 │   └── tables_for_vkr/            # Таблицы CSV/XLSX/Markdown для ВКР
-├── console_diagnostics/          # Консольный запуск RUL/HI/status без Streamlit
-├── experiments/                   # Отдельные оценочные эксперименты
 ├── src/
 │   ├── classification/            # Классификация дефектов CWRU
 │   ├── prediction/                # Прогнозирование RUL XJTU-SY
 │   ├── demo/                      # Константы и вспомогательные данные демо
-│   ├── evaluation/                # ROC-AUC и другие оценочные процедуры
-│   ├── features/                  # Статпризнаки и куртограмма
-│   ├── models/                    # Интерпретируемые baseline-модели
-│   ├── utils/                     # Health Index, RUL в км и пороги
 │   └── visualization/             # Plotly-графики для демо
-├── tests/                         # Быстрые smoke-тесты без обучения моделей
+├── tests/                         # Pytest-тесты core logic, demo inference, CLI и материалов ВКР
 ├── scripts/                       # Сценарии запуска длительных RUL-экспериментов
 ├── scratch/                       # Черновые материалы
 └── scratch_scripts/               # Черновые скрипты
 ```
+
+
+## Топ-5 RUL-моделей
+
+Таблица 13 фиксирует лучшие финальные конфигурации прогнозирования остаточного ресурса по тестовому `R²`. Для демонстрационного контура можно выбирать любую совместимую модель из `models/demo_best/rul/`, но в тексте ВКР важно явно указать, какая именно модель закреплена как default.
+
+| № | Модель | Семейство | Режим | Test R² | MAE | RMSE | Raw PHM | Задержка, мс |
+|---:|---|---|---|---:|---:|---:|---:|---:|
+| 1 | BiLSTM, 30 эпох | v3_rnn | finetune_cnn | -0,012 | 0,224 | 0,255 | 16,344 | 8,423 |
+| 2 | ImprovedTransformer | v3_rnn | finetune_cnn | -0,358 | 0,252 | 0,296 | 31,119 | 4,090 |
+| 3 | BiGRU | v3_rnn | finetune_cnn | -0,381 | 0,250 | 0,298 | 38,595 | 4,099 |
+| 4 | LSTM-Attention, 10 испытаний | v3_rnn | finetune_cnn | -0,393 | 0,253 | 0,300 | 31,626 | 4,065 |
+| 5 | GRU-Attention | v3_rnn | finetune_cnn | -0,393 | 0,256 | 0,300 | 28,652 | 4,118 |
+
+> Все значения `R²` отрицательные, поэтому результаты RUL следует трактовать как исследовательский baseline/прототип, а не как промышленно валидированную модель остаточного пробега.
 
 ## Веб-демо Streamlit
 
 Демо состоит из трех экранов:
 
 - **Классификация дефектов (CWRU)**: выбор checkpoint, выбор тестового сигнала, реальный инференс ResNet-18, график вибросигнала и карта важности модели.
-- **Прогноз ресурса RUL (XJTU-SY)**: выбор checkpoint, реальный инференс CNN+temporal по CSV-окнам XJTU-SY, динамическая отрисовка True RUL / Pred RUL, Health Index, статус и остаточный ресурс в километрах.
+- **Прогноз ресурса RUL (XJTU-SY)**: выбор checkpoint, реальный инференс CNN+temporal по CSV-окнам XJTU-SY и динамическая отрисовка True RUL / Pred RUL.
 - **Бортовой модуль (Дашборд)**: имитация интерфейса машиниста с метриками, gauge chart и таблицей последних проверок.
 
 Архитектура демо:
@@ -88,15 +110,12 @@
 - `app.py` - UI-слой и навигация;
 - `src/demo/mock_data.py` - константы демо и история проверок;
 - `src/prediction/demo_inference.py` - загрузка реальных checkpoint и функции инференса;
-- `src/utils/health_index.py` - Health Index, статус и перевод RUL в километры;
-- `src/utils/thresholds.py` - скоростные пороги виброускорения;
-- `src/features/` - статистические признаки и куртограмма;
 - `src/visualization/plots.py` - построение интерактивных графиков Plotly.
 
 В `src/prediction/demo_inference.py` функции загрузки моделей обернуты в `@st.cache_resource`, поэтому PyTorch-веса загружаются один раз на процесс Streamlit.
 В интерфейсе есть два режима каталога моделей:
 
-- **Prod** (`MODEL_CATALOG_MODE=demo`): показывает активные отобранные checkpoint из `models/demo_best/classification/cwru_classifier.pth` и `models/demo_best/rul/xjtu_rul.pth`;
+- **Prod** (`MODEL_CATALOG_MODE=demo`): показывает активные отобранные checkpoint из `models/demo_best/classification/cwru_classifier.pth` и `models/demo_best/rul/best_rul_transformer_improved_ws1024_v3rnn_train_rul_hybrid_v3_rnn_profilebalanced_trials30_epochs10_featurecache_on.pth`;
 - **Test** (`MODEL_CATALOG_MODE=experimental`): показывает все совместимые checkpoint из демо-папок и исследовательских каталогов.
 
 В каждом режиме есть `selectbox` для выбора checkpoint классификации и checkpoint прогноза RUL. Если `MODEL_CATALOG_LOCKED=1`, переключатель режима скрыт, а демо использует значение из `MODEL_CATALOG_MODE`. В Docker-образе по умолчанию включен заблокированный режим `demo`.
@@ -104,7 +123,7 @@
 Используемые модели в веб-демо:
 
 - классификация CWRU: `models/demo_best/classification/cwru_classifier.pth`, если файл есть;
-- прогноз RUL XJTU-SY: `models/demo_best/rul/xjtu_rul.pth`; в экспериментальном режиме дополнительно доступны совместимые checkpoint из `models/demo_best/rul/`, `models/pred_0/`, `models/preds_2_unfrozen/`, `models/preds_3/`, `models/preds_3_frozen/`, `models/preds_3_rnn/`;
+- прогноз RUL XJTU-SY: `models/demo_best/rul/best_rul_transformer_improved_ws1024_v3rnn_train_rul_hybrid_v3_rnn_profilebalanced_trials30_epochs10_featurecache_on.pth`; старый alias `models/demo_best/rul/xjtu_rul.pth` поддерживается, если файл присутствует; в экспериментальном режиме дополнительно доступны совместимые checkpoint из `models/demo_best/rul/`, `models/pred_0/`, `models/preds_2_unfrozen/`, `models/preds_3/`, `models/preds_3_frozen/`, `models/preds_3_rnn/`;
 - fallback для классификации: `models/cnn/best_resnet18.pth`;
 - fallback для RUL: `models/pred_0/best_rul_lstm.pth`.
 
@@ -112,29 +131,19 @@ RUL-модели сортируются по `test_mse`, поэтому лучш
 
 `models/preds_4_tcn/` и `models/preds_5_odd/` оставлены как исследовательские артефакты и не включены в автоматический выбор веб-демо. Для этих семейств используются отдельные обучающие сценарии и отчетные материалы; подключать конкретный вариант к демо стоит только после проверки качества и совместимости inference-кода на выбранном checkpoint.
 
-Можно положить лучшие checkpoint в `models/demo_best/classification/` и `models/demo_best/rul/` без изменения кода. Также поддерживаются переменные окружения:
+Можно положить лучшие checkpoint в `models/demo_best/classification/` и `models/demo_best/rul/`; для смены активной RUL-модели нужно обновить `DEFAULT_RUL_CHECKPOINT` в `src/prediction/demo_inference.py` или задать переменную окружения. Также поддерживаются переменные окружения:
 
 ```bash
 export DEMO_MODELS_DIR=/path/to/models
 export CWRU_CLASSIFIER_CHECKPOINT=/path/to/cwru_classifier.pth
-export XJTU_RUL_CHECKPOINT=/path/to/xjtu_rul.pth
+export XJTU_RUL_CHECKPOINT=/path/to/rul_checkpoint.pth
 ```
 
-## Консольная диагностика
+## Документы для защиты
 
-Для запуска прогноза ресурса без веб-интерфейса добавлен отдельный CLI-модуль:
+- `DATA_PASSPORT.md` - паспорт данных CWRU и XJTU-SY: источники, структура, preprocessing, split и ограничения.
+- `DEMO_SCENARIO.md` - пошаговый сценарий показа Streamlit и резервного CLI на защите.
 
-```bash
-uv run python console_diagnostics/run.py --bearing Bearing1_3
-```
-
-Он использует тот же checkpoint RUL-модели, рассчитывает нормированный RUL, Health Index, остаточный ресурс в километрах и диагностический статус. Результаты сохраняются в CSV и PNG, а в обычном терминале статус подсвечивается цветом.
-
-Совместимый старый вход также оставлен:
-
-```bash
-uv run python experiments/run_offline_rul_diagnostics.py --bearing Bearing1_3
-```
 
 ## Быстрый запуск демо через Docker
 
@@ -184,11 +193,6 @@ torch
 torchvision
 scipy
 PyWavelets
-scikit-learn
-matplotlib
-hmmlearn
-pytest
-pytest-cov
 ```
 
 ## Полное ML-окружение
@@ -219,14 +223,27 @@ uv sync
 
 ## Проверки и тесты
 
-В проект добавлены быстрые smoke-тесты на `pytest`. Они не запускают обучение, Optuna, MLflow и не требуют тяжелых checkpoint, а проверяют базовую работоспособность ключевых частей кода:
+В проекте используется `pytest` и `pytest-cov`. Тесты не запускают обучение моделей, Optuna-подбор и MLflow pipeline; основная часть проверок работает на синтетических или малых временных данных. Отдельные интеграционные smoke-тесты помечены маркером `slow` и могут загружать demo checkpoint для короткого CWRU/XJTU-SY inference.
 
-- создание и forward-pass классификационной модели ResNet-18;
-- формы выходов temporal/RUL-моделей;
-- работу `RULDataset` на маленьких временных CSV;
-- структуру демонстрационных данных;
-- создание Plotly-графиков для Streamlit-демо;
-- сборку таблиц и рисунков для ВКР из сохраненных CSV-метрик.
+Текущее локальное покрытие ключевого кода:
+
+```text
+uv run pytest --cov=src --cov=console_diagnostics --cov-report=term-missing -q
+80 passed, 3 warnings
+TOTAL coverage: 90%
+```
+
+Что проверяется тестами:
+
+- консольная диагностика: запуск CLI-логики, цветной вывод, сохранение CSV и PNG;
+- классификационные CNN-модели и `SpectrogramAdapter` для STFT-спектрограмм;
+- RUL-модели: LSTM, GRU, TCN, Transformer, Mamba fallback, CNN encoder и загрузка checkpoint;
+- `RULDataset` и `DemoRULDataset` на малых CSV-последовательностях;
+- demo inference helpers: выбор checkpoint, metadata, каталог моделей и короткий CWRU/XJTU-SY smoke inference;
+- HMM baseline: обучение, прогноз RUL, метрики и подбор числа скрытых состояний;
+- Health Index, пороги тревог, статистические признаки, kurtogram и построение графиков;
+- сборка таблиц и рисунков для ВКР из сохраненных CSV-метрик;
+- ROC-AUC utilities как вспомогательная offline-оценка классификатора, не как часть финального demo-сценария.
 
 Для коротких команд есть `Makefile`:
 
@@ -263,6 +280,18 @@ uv sync --dev
 uv run pytest
 ```
 
+Запуск тестов без интеграционных `slow` smoke-проверок:
+
+```bash
+uv run pytest -m "not slow"
+```
+
+Запуск с расчетом покрытия:
+
+```bash
+uv run pytest --cov=src --cov=console_diagnostics --cov-report=term-missing -q
+```
+
 Более подробный вывод:
 
 ```bash
@@ -273,6 +302,7 @@ uv run pytest -v
 
 ```bash
 uv run pytest tests/test_prediction_model.py
+uv run pytest tests/test_demo_inference.py -q
 ```
 
 Перед переносом изменений в `main` рекомендуется выполнить минимум:
@@ -326,6 +356,8 @@ uv run python scratch_scripts/make_vkr_materials.py --summary-dir reports/figure
 
 ## Данные
 
+Подробный паспорт датасетов находится в `DATA_PASSPORT.md`. Коротко: CWRU используется для классификации дефектов подшипника по DE-каналу, XJTU-SY используется для RUL по двум каналам вибрации.
+
 Ожидаемая структура исходных данных:
 
 ```text
@@ -339,8 +371,6 @@ data/raw/
     ├── 37.5Hz11kN/
     └── 40Hz10kN/
 ```
-
-В ветке `main` хранится компактная выборка для Docker-демо: несколько CWRU `.mat` и равномерный subset CSV для XJTU-SY подшипников, доступных в интерфейсе. Полный исследовательский датасет не входит в clean-релиз и должен храниться отдельно.
 
 Кэшируемые производные данные:
 
@@ -432,20 +462,27 @@ http://localhost:5000
 
 ## Модели и артефакты
 
-Основные директории clean-релиза:
+Основные директории:
 
 - `models/demo_best/` - активные checkpoint для Streamlit-демо;
-- `models/cnn/` - компактный набор классификационных CNN/ResNet-18 checkpoint;
-- `models/pred_0/` - fallback RUL-модель для демо.
-
-Полные исследовательские checkpoint из `models/preds_*`, MLflow-артефакты и большие отчётные директории в `main` не включаются. Их стоит хранить в рабочих ветках, локальном хранилище или отдельном артефактном хранилище.
+- `models/cnn/` - классификационные CNN/ResNet-18 модели, ONNX-экспорт и RUL encoder `best_resnet18_rul.pth`;
+- `models/pred_0/` - базовые RUL-модели;
+- `models/preds_2_frozen/` - RUL v2 с замороженным CNN и feature-cache;
+- `models/preds_2_unfrozen/` - RUL v2 с дообучаемым CNN;
+- `models/preds_3/` и `models/preds_3_frozen/` - Transformer/LSTM/GRU варианты;
+- `models/preds_3_rnn/` - BiLSTM/BiGRU/attention/improved Transformer варианты;
+- `models/preds_4_tcn/` - TCN, multi-scale TCN, TCN+attention и bidirectional TCN;
+- `models/preds_5_odd/` - PatchTST, Conformer и Mamba-эксперименты;
+- `reports/figures/` - графики обучения, residuals, RUL prediction и сводные сравнения;
+- `reports/tables_for_vkr/` - CSV/XLSX/Markdown таблицы для текста ВКР;
+- `reports/logs/` - логи длительных matrix/overnight-запусков.
 
 ## Как заменить модели в демо
 
 Точки интеграции находятся в `src/prediction/demo_inference.py`.
 
 1. Положить лучший классификатор в `models/demo_best/classification/cwru_classifier.pth`.
-2. Положить лучшую RUL-модель в одну из поддерживаемых папок или в `models/demo_best/rul/xjtu_rul.pth`.
+2. Положить лучшую RUL-модель в `models/demo_best/rul/` и обновить `DEFAULT_RUL_CHECKPOINT` в `src/prediction/demo_inference.py`; текущий default: `models/demo_best/rul/best_rul_transformer_improved_ws1024_v3rnn_train_rul_hybrid_v3_rnn_profilebalanced_trials30_epochs10_featurecache_on.pth`.
 3. Для новых RUL-архитектур добавить inference-head в `src/prediction/demo_inference.py`.
 4. Если меняется препроцессинг, обновить `_build_cwru_input()` или RUL dataset/pipeline в `predict_rul_series()`.
 
@@ -466,13 +503,27 @@ FROM python:3.10-slim
 - `src/`;
 - `models/demo_best/`;
 - fallback checkpoint из `models/cnn/` и `models/pred_0/`;
-- компактную выборку `data/raw/` для реального CWRU/XJTU-SY инференса в демо.
+- совместимые RUL checkpoint из `models/preds_2_unfrozen/`, `models/preds_3/`, `models/preds_3_frozen/`, `models/preds_3_rnn/`;
+- `data/raw/` для реального CWRU/XJTU-SY инференса.
 
 Запуск внутри контейнера:
 
 ```bash
 streamlit run app.py --server.port=8501 --server.address=0.0.0.0
 ```
+
+
+## Known limitations
+
+- Проект является исследовательским ML-прототипом и демонстрационным контуром, а не промышленной системой online monitoring.
+- Входные данные не являются реальным трехосевым датчиком колесной пары: CWRU использует один DE-канал подшипника, XJTU-SY использует два канала `horizontal/vertical`.
+- В репозитории нет промышленного датасета дефектов поверхности катания колеса: ползунов, выщербин, овальности и износа профиля.
+- Веб-демо не загружает пользовательские файлы. Для воспроизводимости защиты используются подготовленные сигналы CWRU и bearing-директории XJTU-SY через `selectbox`.
+- Карта важности в интерактивном demo - это gradient * input attribution из `_build_attribution()`, а не SHAP. SHAP остается исследовательским/offline материалом в scratch/report scripts.
+- График RUL строится одной выбранной моделью `models/demo_best/rul/best_rul_transformer_improved_ws1024_v3rnn_train_rul_hybrid_v3_rnn_profilebalanced_trials30_epochs10_featurecache_on.pth`. Ансамблевый доверительный интервал в UI не реализован.
+- Остаточный ресурс в километрах рассчитывается как демонстрационная постобработка Health Index и slope, а не как валидированная физическая модель пробега вагона.
+- ROC-AUC не используется в финальном demo/CLI-сценарии диагностики. `src/evaluation/roc_analysis.py` оставлен как исследовательская offline-утилита для дополнительной оценки классификатора.
+- Дашборд использует демонстрационную историю из `src/demo/mock_data.py`; persistent storage, пользователи, API и аудит решений не реализованы.
 
 ## Примечания
 

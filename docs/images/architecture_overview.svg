@@ -1,0 +1,86 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" viewBox="0 0 1280 720" role="img" aria-label="Architecture overview for wheelset vibration analytics">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#f7fbff"/>
+      <stop offset="1" stop-color="#edf7f2"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="10" stdDeviation="12" flood-color="#1f2937" flood-opacity="0.14"/>
+    </filter>
+    <style>
+      .title{font:700 36px Arial, sans-serif;fill:#172033}.subtitle{font:400 18px Arial, sans-serif;fill:#526071}.label{font:700 19px Arial, sans-serif;fill:#172033}.small{font:400 15px Arial, sans-serif;fill:#526071}.tiny{font:400 13px Arial, sans-serif;fill:#617184}.card{fill:#fff;stroke:#d7e0ea;stroke-width:1.3;filter:url(#shadow)}.chip{fill:#eef6ff;stroke:#b9d8f5;stroke-width:1}.arrow{stroke:#41576d;stroke-width:3;fill:none;marker-end:url(#arrow)}.accent1{fill:#e9f5ff}.accent2{fill:#edf8ef}.accent3{fill:#fff3df}.accent4{fill:#f4efff}.accent5{fill:#f0f5f8}.line{stroke:#2f80ed;stroke-width:4;fill:none}.green{stroke:#28a745}.orange{stroke:#f59e0b}.red{stroke:#d64545}
+    </style>
+    <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#41576d"/></marker>
+  </defs>
+  <rect width="1280" height="720" fill="url(#bg)"/>
+  <text x="64" y="74" class="title">Предиктивная вибродиагностика буксового узла</text>
+  <text x="64" y="106" class="subtitle">От вибросигнала к классу дефекта, RUL, Health Index и демонстрационному статусу</text>
+
+  <rect x="64" y="158" rx="18" ry="18" width="210" height="150" class="card"/>
+  <rect x="82" y="177" rx="10" width="82" height="30" class="chip"/>
+  <text x="96" y="198" class="tiny">data</text>
+  <text x="92" y="236" class="label">CWRU .mat</text>
+  <text x="92" y="263" class="small">DE-канал</text>
+  <text x="92" y="286" class="small">10 классов</text>
+
+  <rect x="64" y="416" rx="18" ry="18" width="210" height="150" class="card"/>
+  <rect x="82" y="435" rx="10" width="82" height="30" class="chip"/>
+  <text x="96" y="456" class="tiny">data</text>
+  <text x="92" y="494" class="label">XJTU-SY CSV</text>
+  <text x="92" y="521" class="small">horizontal / vertical</text>
+  <text x="92" y="544" class="small">run-to-failure</text>
+
+  <path d="M 275 232 C 314 232 314 232 351 232" class="arrow"/>
+  <path d="M 275 490 C 314 490 314 490 351 490" class="arrow"/>
+
+  <rect x="352" y="158" rx="18" ry="18" width="220" height="150" class="card"/>
+  <rect x="370" y="177" rx="10" width="118" height="30" class="accent1"/>
+  <text x="386" y="198" class="tiny">preprocess</text>
+  <text x="382" y="236" class="label">STFT</text>
+  <text x="382" y="263" class="small">окна 1024</text>
+  <text x="382" y="286" class="small">спектрограммы</text>
+
+  <rect x="352" y="416" rx="18" ry="18" width="220" height="150" class="card"/>
+  <rect x="370" y="435" rx="10" width="118" height="30" class="accent1"/>
+  <text x="386" y="456" class="tiny">preprocess</text>
+  <text x="382" y="494" class="label">CWT</text>
+  <text x="382" y="521" class="small">скалограммы</text>
+  <text x="382" y="544" class="small">последовательности</text>
+
+  <path d="M 574 232 C 616 232 616 232 652 232" class="arrow"/>
+  <path d="M 574 490 C 616 490 616 490 652 490" class="arrow"/>
+
+  <rect x="654" y="158" rx="18" ry="18" width="250" height="150" class="card"/>
+  <rect x="672" y="177" rx="10" width="86" height="30" class="accent2"/>
+  <text x="688" y="198" class="tiny">model</text>
+  <text x="684" y="236" class="label">ResNet-18</text>
+  <text x="684" y="263" class="small">классификация дефекта</text>
+  <text x="684" y="286" class="small">class + confidence</text>
+
+  <rect x="654" y="416" rx="18" ry="18" width="250" height="150" class="card"/>
+  <rect x="672" y="435" rx="10" width="86" height="30" class="accent2"/>
+  <text x="688" y="456" class="tiny">model</text>
+  <text x="684" y="494" class="label">ImprovedTransformer</text>
+  <text x="684" y="521" class="small">v3_rnn, finetune CNN</text>
+  <text x="684" y="544" class="small">normalized RUL</text>
+
+  <path d="M 906 232 C 947 232 947 232 982 232" class="arrow"/>
+  <path d="M 906 490 C 947 490 947 490 982 490" class="arrow"/>
+
+  <rect x="984" y="158" rx="18" ry="18" width="232" height="150" class="card"/>
+  <rect x="1002" y="177" rx="10" width="112" height="30" class="accent4"/>
+  <text x="1018" y="198" class="tiny">diagnostics</text>
+  <text x="1014" y="236" class="label">Streamlit UI</text>
+  <text x="1014" y="263" class="small">сигнал + карта важности</text>
+  <text x="1014" y="286" class="small">результат классификации</text>
+
+  <rect x="984" y="416" rx="18" ry="18" width="232" height="150" class="card"/>
+  <rect x="1002" y="435" rx="10" width="112" height="30" class="accent4"/>
+  <text x="1018" y="456" class="tiny">diagnostics</text>
+  <text x="1014" y="494" class="label">HI + статус</text>
+  <text x="1014" y="521" class="small">RUL-график</text>
+  <text x="1014" y="544" class="small">пробег и пороги</text>
+
+  <rect x="352" y="622" rx="16" width="552" height="48" class="card"/>
+  <text x="382" y="652" class="small">Ограничение: текущий прототип использует CWRU/XJTU-SY, а промышленный X/Y/Z-контур требует отдельной валидации.</text>
+</svg>

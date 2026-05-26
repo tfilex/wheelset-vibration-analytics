@@ -37,8 +37,13 @@ FALLBACK_CWRU_CHECKPOINT = PROJECT_ROOT / "models/cnn/best_resnet18.pth"
 FALLBACK_RUL_CHECKPOINT = PROJECT_ROOT / "models/pred_0/best_rul_lstm.pth"
 FALLBACK_RUL_ENCODER_CHECKPOINT = PROJECT_ROOT / "models/cnn/best_resnet18_rul.pth"
 DEFAULT_CWRU_CHECKPOINT = DEMO_CLASSIFICATION_MODELS_DIR / "cwru_classifier.pth"
-DEFAULT_RUL_CHECKPOINT = DEMO_RUL_MODELS_DIR / "xjtu_rul.pth"
+DEFAULT_RUL_CHECKPOINT = (
+    DEMO_RUL_MODELS_DIR
+    / "best_rul_transformer_improved_ws1024_v3rnn_train_rul_hybrid_v3_rnn_"
+    "profilebalanced_trials30_epochs10_featurecache_on.pth"
+)
 LEGACY_CWRU_CHECKPOINT = DEMO_MODELS_DIR / "cwru_classifier.pth"
+COMPAT_RUL_CHECKPOINT = DEMO_RUL_MODELS_DIR / "xjtu_rul.pth"
 LEGACY_RUL_CHECKPOINT = DEMO_MODELS_DIR / "xjtu_rul.pth"
 
 DEMO_RUL_MODEL_DIRS = (
@@ -337,15 +342,16 @@ def _resolve_checkpoint(
     env_name: str,
     preferred: Path,
     fallback: Path,
-    legacy: Path | None = None,
+    *legacy_paths: Path | None,
 ) -> Path:
     override = os.getenv(env_name)
     if override:
         return Path(override).expanduser()
     if preferred.exists():
         return preferred
-    if legacy and legacy.exists():
-        return legacy
+    for legacy_path in legacy_paths:
+        if legacy_path and legacy_path.exists():
+            return legacy_path
     return fallback
 
 
@@ -363,6 +369,7 @@ def get_rul_checkpoint_path() -> Path:
         "XJTU_RUL_CHECKPOINT",
         DEFAULT_RUL_CHECKPOINT,
         FALLBACK_RUL_CHECKPOINT,
+        COMPAT_RUL_CHECKPOINT,
         LEGACY_RUL_CHECKPOINT,
     )
 
@@ -438,16 +445,23 @@ def _active_checkpoint_candidates(
     env_name: str,
     preferred: Path,
     fallback: Path,
-    legacy: Path | None = None,
+    *legacy_paths: Path | None,
 ) -> list[Path]:
     return _checkpoint_candidates(
-        _resolve_checkpoint(env_name, preferred, fallback, legacy)
+        _resolve_checkpoint(env_name, preferred, fallback, *legacy_paths)
     )
+
+
+def _torch_load_checkpoint(path: Path) -> Any:
+    try:
+        return torch.load(path, map_location="cpu", weights_only=True)
+    except TypeError:
+        return torch.load(path, map_location="cpu")
 
 
 def _load_checkpoint_metadata(path: Path) -> dict[str, Any] | None:
     try:
-        checkpoint = torch.load(path, map_location="cpu")
+        checkpoint = _torch_load_checkpoint(path)
     except Exception:
         return None
     if not isinstance(checkpoint, dict) or "state_dict" not in checkpoint:
@@ -572,11 +586,13 @@ def discover_rul_models(mode: ModelCatalogMode = "demo") -> list[ModelOption]:
             "XJTU_RUL_CHECKPOINT",
             DEFAULT_RUL_CHECKPOINT,
             FALLBACK_RUL_CHECKPOINT,
+            COMPAT_RUL_CHECKPOINT,
             LEGACY_RUL_CHECKPOINT,
         )
     else:
         candidates = _checkpoint_candidates(
             DEFAULT_RUL_CHECKPOINT,
+            COMPAT_RUL_CHECKPOINT,
             LEGACY_RUL_CHECKPOINT,
             FALLBACK_RUL_CHECKPOINT,
             DEMO_RUL_MODELS_DIR,
@@ -632,7 +648,7 @@ def load_resnet18_classifier(
         raise FileNotFoundError(f"Checkpoint not found: {resolved_checkpoint_path}")
     _ = checkpoint_fingerprint or get_checkpoint_fingerprint(resolved_checkpoint_path)
 
-    checkpoint = torch.load(resolved_checkpoint_path, map_location="cpu")
+    checkpoint = _torch_load_checkpoint(resolved_checkpoint_path)
     model_name = checkpoint.get("model_name", "resnet18")
     num_classes = int(checkpoint.get("num_classes", 10))
 
@@ -752,7 +768,7 @@ def load_cnn_lstm_rul_model(
         raise FileNotFoundError(f"Checkpoint not found: {resolved_checkpoint_path}")
     _ = checkpoint_fingerprint or get_checkpoint_fingerprint(resolved_checkpoint_path)
 
-    checkpoint = torch.load(resolved_checkpoint_path, map_location="cpu")
+    checkpoint = _torch_load_checkpoint(resolved_checkpoint_path)
     params = _rul_params_from_checkpoint(checkpoint)
     temporal_type = params["temporal_type"]
     hidden_size = params["hidden_size"]
