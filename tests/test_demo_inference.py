@@ -5,6 +5,9 @@ import pytest
 from src.prediction import demo_inference as demo
 
 
+pytestmark = pytest.mark.slow
+
+
 def _path_from_option(option: demo.ModelOption) -> Path:
     return Path(option["path"]).expanduser()
 
@@ -32,7 +35,6 @@ def test_demo_rul_catalog_prefers_pinned_checkpoint():
     assert "MSE=0.0117" in rul_options[0]["label"]
 
 
-@pytest.mark.slow
 def test_demo_classification_smoke_inference():
     checkpoint_path = demo.get_cwru_checkpoint_path()
     sample_path = demo.CWRU_SAMPLE_FILES["Норма"]
@@ -52,7 +54,6 @@ def test_demo_classification_smoke_inference():
     assert 0.0 <= result["confidence"] <= 1.0
 
 
-@pytest.mark.slow
 def test_demo_rul_smoke_inference():
     checkpoint_path = demo.get_rul_checkpoint_path()
     bearing_dir = demo.XJTU_BEARING_DIRS["Bearing1_3"]
