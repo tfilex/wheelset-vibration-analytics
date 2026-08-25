@@ -30,13 +30,13 @@ def build_attribution_heatmap(heatmap: np.ndarray) -> go.Figure:
         heatmap,
         color_continuous_scale="jet",
         aspect="auto",
-        labels={"x": "Окно сигнала", "y": "Частотный канал", "color": "Вклад"},
-        title="Карта важности модели",
+        labels={"x": "Окно сигнала", "y": "Частотный канал", "color": "Gradient attribution"},
+        title="Градиентная карта важности модели",
     )
     fig.update_layout(
         height=420,
         margin={"l": 20, "r": 20, "t": 55, "b": 20},
-        coloraxis_colorbar={"title": "Вклад"},
+        coloraxis_colorbar={"title": "Gradient attribution"},
     )
     return fig
 
