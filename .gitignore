@@ -51,3 +51,5 @@ temp/
 /data
 /reports
 /md
+# Local agent instructions
+/AGENTS.md
